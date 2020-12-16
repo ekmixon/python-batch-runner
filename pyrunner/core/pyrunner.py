@@ -159,7 +159,7 @@ class PyRunner:
     if self.config.is_set('email_on_fail'):
       print('Warning: --email-on-fail option (and APP_EMAIL_ON_FAIL env var) will be deprecated in version 6. Use --notify-on-fail option (APP_NOTIFY_ON_FAIL) instead.')
     if self.config.is_set('email_on_success'):
-      print('Warning: --email-on-success option (and APP_EMAIL_ON_SUCCESS env var) will be deprecated in version 6. Use --notify-on-success option (APP_EMAIL_ON_SUCCESS) instead.')
+      print('Warning: --email-on-success option (and APP_EMAIL_ON_SUCCESS env var) will be deprecated in version 6. Use --notify-on-success option (APP_NOTIFY_ON_SUCCESS) instead.')
     
     # Initialize NodeRegister
     if self.config['restart']:
@@ -204,18 +204,17 @@ class PyRunner:
     print('Executing PyRunner App: {}'.format(self.config['app_name']))
     retcode = self.engine.initiate()
     
-    emit_notification = True
-    
+    should_notify = True
     if retcode == 0:
       if not self.config['email_on_success']:
         print('Skipping Email Notification: Property "email_on_success" is set to FALSE.')
-        emit_notification = False
+        should_notify = False
     elif retcode > 0:
       if not self.config['email_on_fail']:
         print('Skipping Email Notification: Property "email_on_fail" is set to FALSE.')
-        emit_notification = False
+        should_notify = False
     
-    if emit_notification:
+    if should_notify:
       self.notification.emit_notification(self.config, self.register)
     
     if not self.config['nozip']:
@@ -407,9 +406,11 @@ class PyRunner:
         elif opt in ['-e', '--email']:
           self.config['email'] = arg
         elif opt in ['--email-on-fail']:
-          self.config['email_on_fail'] = arg
+          print('Warning: --email-on-fail option (and APP_EMAIL_ON_FAIL env var) will be deprecated in version 6. Use --notify-on-fail option (APP_NOTIFY_ON_FAIL) instead.')
+          self.config['notify_on_fail'] = arg
         elif opt in ['--email-on-success']:
-          self.config['email_on_success'] = arg
+          print('Warning: --email-on-success option (and APP_EMAIL_ON_SUCCESS env var) will be deprecated in version 6. Use --notify-on-success option (APP_NOTIFY_ON_SUCCESS) instead.')
+          self.config['notify_on_success'] = arg
         elif opt == '--notify-on-fail':
           self.config['notify_on_fail'] = arg
         elif opt == '--notify-on-success':

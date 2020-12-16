@@ -33,7 +33,7 @@ class Worker(ABC):
     - on_exit()
   """
   
-  def __init__(self, context, logfile, argv, as_service, service_exec_interval=1):
+  def __init__(self, context, logfile, argv, as_service=False, service_exec_interval=1):
     self.context = context
     self._retcode = multiprocessing.sharedctypes.Value('i', 0)
     self.logfile = logfile

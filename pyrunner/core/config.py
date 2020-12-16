@@ -101,8 +101,6 @@ class Config:
       'max_procs'            : { 'type': int , 'preserve': False, 'env': 'APP_MAX_PROCS'            , 'value': None, 'default': -1 },
       'log_retention'        : { 'type': int , 'preserve': True,  'env': 'APP_LOG_RETENTION'        , 'value': None, 'default': 30 },
       'dryrun'               : { 'type': bool, 'preserve': False, 'env': 'APP_DRYRUN'               , 'value': None, 'default': False },
-      'email_on_fail'        : { 'type': bool, 'preserve': False, 'env': 'APP_EMAIL_ON_FAIL'        , 'value': None, 'default': True },
-      'email_on_success'     : { 'type': bool, 'preserve': False, 'env': 'APP_EMAIL_ON_SUCCESS'     , 'value': None, 'default': True },
       'notify_on_fail'       : { 'type': bool, 'preserve': False, 'env': 'APP_NOTIFY_ON_FAIL'       , 'value': None, 'default': True },
       'notify_on_success'    : { 'type': bool, 'preserve': False, 'env': 'APP_NOTIFY_ON_SUCCESS'    , 'value': None, 'default': True },
       'as_service'           : { 'type': bool, 'preserve': True,  'env': 'APP_AS_SERVICE'           , 'value': None, 'default': False },
