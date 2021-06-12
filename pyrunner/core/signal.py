@@ -15,40 +15,39 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+from pyrunner.core import config
 
-SIG_ABORT = 'sig.abort'
-SIG_PAUSE = 'sig.pause'
-SIG_PULSE = 'sig.pulse'
-SIG_REVIVE = 'sig.revive'
+SIG_ABORT = "sig.abort"
+SIG_PAUSE = "sig.pause"
+SIG_PULSE = "sig.pulse"
+SIG_REVIVE = "sig.revive"
 
 _valid_signals = (SIG_ABORT, SIG_PAUSE, SIG_PULSE, SIG_REVIVE)
 
+
 class SignalHandler:
-  
-  def __init__(self, config):
-    self.config = config
-  
-  def sig_file(self, sig):
-    return '{}/.{}.{}'.format(self.config['temp_dir'], self.config['app_name'], sig)
-  
-  def emit(self, sig):
-    if sig not in _valid_signals: raise ValueError('Unknown signal type: {}'.format(sig))
-    open(self.sig_file(sig), 'a').close()
-  
-  def consume(self, sig):
-    if sig not in _valid_signals:
-      raise ValueError('Unknown signal type: {}'.format(sig))
-    if sig in self.peek():
-      os.remove(self.sig_file(sig))
-      return True
-    else:
-      return False
-  
-  def consume_all(self):
-    sig_set = self.peek()
-    for sig in sig_set:
-      os.remove(self.sig_file(sig))
-    return sig_set
-  
-  def peek(self):
-    return set([ s for s in _valid_signals if os.path.exists(self.sig_file(s)) ])
+    def sig_file(self, sig):
+        return "{}/.{}.{}".format(config["temp_dir"], config["app_name"], sig)
+
+    def emit(self, sig):
+        if sig not in _valid_signals:
+            raise ValueError("Unknown signal type: {}".format(sig))
+        open(self.sig_file(sig), "a").close()
+
+    def consume(self, sig):
+        if sig not in _valid_signals:
+            raise ValueError("Unknown signal type: {}".format(sig))
+        if sig in self.peek():
+            os.remove(self.sig_file(sig))
+            return True
+        else:
+            return False
+
+    def consume_all(self):
+        sig_set = self.peek()
+        for sig in sig_set:
+            os.remove(self.sig_file(sig))
+        return sig_set
+
+    def peek(self):
+        return set([s for s in _valid_signals if os.path.exists(self.sig_file(s))])

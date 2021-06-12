@@ -16,9 +16,10 @@
 
 from abc import ABCMeta, abstractmethod
 
+
 class Notification:
-  __metaclass__ = ABCMeta
-  
-  @abstractmethod
-  def emit_notification(self, message, attachments=[]):
-    raise NotImplementedError('Method "emit_notification" is not implemented.')
+    __metaclass__ = ABCMeta
+
+    @abstractmethod
+    def emit_notification(self, message, attachments=[]):
+        raise NotImplementedError('Method "emit_notification" is not implemented.')

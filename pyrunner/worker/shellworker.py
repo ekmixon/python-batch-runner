@@ -17,19 +17,20 @@
 from pyrunner.worker.abstract import Worker
 from subprocess import run, Popen, PIPE, STDOUT
 
+
 class ShellWorker(Worker):
-  """
-  Pre-defined worker for executing raw Shell command given in the Worker
-  self.argv property. STDOUT/STDERR is redirected to configured logger.
-  """
-  
-  def run(self):
-    command = self.argv
-    
-    proc = Popen(command, stdout=PIPE, stderr=STDOUT, shell=True)
-    
-    for line in iter(proc.stdout.readline, b''):
-      self.logger.info(line.decode('UTF-8'))
-    
-    proc.communicate()
-    return proc.returncode
+    """
+    Pre-defined worker for executing raw Shell command given in the Worker
+    self.argv property. STDOUT/STDERR is redirected to configured logger.
+    """
+
+    def run(self):
+        command = self.argv
+
+        proc = Popen(command, stdout=PIPE, stderr=STDOUT, shell=True)
+
+        for line in iter(proc.stdout.readline, b""):
+            self.logger.info(line.decode("UTF-8"))
+
+        proc.communicate()
+        return proc.returncode

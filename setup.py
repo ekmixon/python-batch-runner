@@ -16,20 +16,17 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-import sys
-from distutils.core import setup
+from setuptools import setup, find_packages
 from pyrunner.version import __version__
 
 setup(
-  name = 'python-batch-runner',
-  version = __version__,
-  author = 'Nathaniel Lee',
-  author_email = 'nathaniel_lee@comcast.com',
-  install_requires = [],
-  packages = ['pyrunner', 'pyrunner.core', 'pyrunner.logger', 'pyrunner.notification', 'pyrunner.serde', 'pyrunner.worker', 'pyrunner.autodoc' ],
-  license = 'Apache 2.0',
-  long_description = 'Python utility providing text-based workflow manager.',
-  entry_points = {
-    'console_scripts': ['pyrunner=pyrunner.cli:main']
-  }
+    name="python-batch-runner",
+    version=__version__,
+    author="Nathaniel Lee",
+    author_email="nathaniel_lee@comcast.com",
+    install_requires=[],
+    packages=find_packages(),
+    license="Apache 2.0",
+    long_description="Python utility providing text-based workflow manager.",
+    entry_points={"console_scripts": ["pyrunner=pyrunner.cli:main"]},
 )

@@ -16,73 +16,74 @@
 
 from abc import ABCMeta, abstractmethod
 
+
 class Logger:
-  __metaclass__ = ABCMeta
-  
-  @abstractmethod
-  def open(self, open_message=True):
-    """
-    Open stream for target log object.
-    """
-    raise NotImplementedError('Method "open" is not implemented')
-  
-  @abstractmethod
-  def _emit_(self, level, text):
-    """
-    Write log message with given level. This is the method that must be implemented
-    at minimum to allow for the logger to understand how to write a message to a
-    target log.
-    """
-    raise NotImplementedError('Method _emit_ is not implemented')
-  
-  def info(self, text):
-    """
-    Write a standard INFO level log message.
-    """
-    self._emit_('INFO', text)
-  
-  def success(self, text):
-    """
-    Write a SUCCESS level log message.
-    """
-    self._emit_('SUCCESS', text)
-  
-  def warn(self, text):
-    """
-    Write a standard WARN level log message.
-    """
-    self._emit_('WARN', text)
-  
-  def error(self, text):
-    """
-    Write an ERROR level log message.
-    """
-    self._emit_('ERROR', text)
-  
-  def _system_(self, text):
-    """
-    Write a generic SYSTEM level log message.
-    This is reserved for internal control messages.
-    """
-    self._emit_('SYSTEM', text)
-  
-  @abstractmethod
-  def restart_message(self, restart_count, extra_text):
-    """
-    Write a RESTART attempt indication message.
-    """
-    raise NotImplementedError('Method "restart" is not implemented')
-  
-  @abstractmethod
-  def close(self):
-    """
-    Close stream for target log object.
-    """
-    raise NotImplementedError('Method "close" is not implemented')
-  
-  @abstractmethod
-  def dump_log(self):
-    """
-    Dump contents of target log object to STDOUT.
-    """
-    raise NotImplementedError('Method "dump_log" is not implemented')
+    __metaclass__ = ABCMeta
+
+    @abstractmethod
+    def open(self, open_message=True):
+        """
+        Open stream for target log object.
+        """
+        raise NotImplementedError('Method "open" is not implemented')
+
+    @abstractmethod
+    def _emit_(self, level, text):
+        """
+        Write log message with given level. This is the method that must be implemented
+        at minimum to allow for the logger to understand how to write a message to a
+        target log.
+        """
+        raise NotImplementedError("Method _emit_ is not implemented")
+
+    def info(self, text):
+        """
+        Write a standard INFO level log message.
+        """
+        self._emit_("INFO", text)
+
+    def success(self, text):
+        """
+        Write a SUCCESS level log message.
+        """
+        self._emit_("SUCCESS", text)
+
+    def warn(self, text):
+        """
+        Write a standard WARN level log message.
+        """
+        self._emit_("WARN", text)
+
+    def error(self, text):
+        """
+        Write an ERROR level log message.
+        """
+        self._emit_("ERROR", text)
+
+    def _system_(self, text):
+        """
+        Write a generic SYSTEM level log message.
+        This is reserved for internal control messages.
+        """
+        self._emit_("SYSTEM", text)
+
+    @abstractmethod
+    def restart_message(self, restart_count, extra_text):
+        """
+        Write a RESTART attempt indication message.
+        """
+        raise NotImplementedError('Method "restart" is not implemented')
+
+    @abstractmethod
+    def close(self):
+        """
+        Close stream for target log object.
+        """
+        raise NotImplementedError('Method "close" is not implemented')
+
+    @abstractmethod
+    def dump_log(self):
+        """
+        Dump contents of target log object to STDOUT.
+        """
+        raise NotImplementedError('Method "dump_log" is not implemented')
