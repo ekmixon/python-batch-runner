@@ -293,6 +293,10 @@ class Config:
 
         proc.communicate()
 
+        worker_dir = self.__getitem__('worker_dir')
+        if worker_dir not in sys.path:
+            sys.path.append(worker_dir)
+
     def print_attributes(self):
         """
         Prints out the Contig object's key:value pairs, using the highest
