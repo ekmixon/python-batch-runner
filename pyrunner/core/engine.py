@@ -18,8 +18,9 @@ from pyrunner.core import config
 from pyrunner.core.context import Context
 from pyrunner.core.signal import SignalHandler, SIG_ABORT, SIG_PULSE, SIG_REVIVE
 from multiprocessing import Manager
+from pyrunner.serde import get_serde_instance
 
-import sys, time, os
+import sys, time, os, pickle
 
 
 class ExecutionEngine:
@@ -70,7 +71,6 @@ class ExecutionEngine:
         """Begins the execution loop."""
 
         signal_handler = SignalHandler()
-        sys.path.append(config["worker_dir"])
         self.start_time = time.time()
         wait_interval = 1.0 / config["tickrate"] if config["tickrate"] >= 1 else 0
         last_save = 0
@@ -288,10 +288,15 @@ class ExecutionEngine:
         print("")
 
     def save_state(self, suppress_output=False, only_ctllog=False):
+        if not config.ctllog_file:
+            if not suppress_output:
+                print("No ctllog defined")
+            return
+
         if not suppress_output:
             print("Saving Execution Graph File to: {}".format(config.ctllog_file))
 
-        self.serde_obj.save_to_file(config.ctllog_file, self.register)
+        get_serde_instance().save_to_file(config.ctllog_file, self.register)
         if only_ctllog:
             return
 
@@ -299,7 +304,7 @@ class ExecutionEngine:
 
             state_obj = {
                 "config": config.items(),
-                "shared_dict": self.engine._shared_dict.copy(),
+                "shared_dict": self._shared_dict.copy(),
             }
 
             if not suppress_output:

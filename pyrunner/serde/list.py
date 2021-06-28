@@ -65,17 +65,17 @@ class ListSerDe(SerDe):
                 else:
                     sub_details.append(item)
 
-            id = int(sub_details[0])
-            if id in used_ids:
+            node_id = int(sub_details[0])
+            if node_id in used_ids:
                 return False
             else:
-                used_ids.add(id)
+                used_ids.add(node_id)
 
             dependencies = [int(x) for x in sub_details[1].split(",")]
 
             if restart:
                 register.add_node(
-                    id=id,
+                    id=node_id,
                     dependencies=dependencies,
                     max_attempts=sub_details[2],
                     retry_wait_time=sub_details[3],
@@ -99,7 +99,7 @@ class ListSerDe(SerDe):
                 )
             else:
                 register.add_node(
-                    id=id,
+                    id=node_id,
                     dependencies=dependencies,
                     max_attempts=sub_details[2],
                     retry_wait_time=sub_details[3],

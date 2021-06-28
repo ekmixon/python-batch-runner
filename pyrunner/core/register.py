@@ -29,6 +29,8 @@ class NodeRegister:
     def __init__(self):
         self._root = ExecutionNode(-1, constants.ROOT_NODE_NAME)
         self._cur_node_id = 0
+        self._graph = dict()
+        self._name_mappings = dict()
         self.register = {
             constants.STATUS_COMPLETED: set(),
             constants.STATUS_PENDING: set(),
@@ -38,7 +40,6 @@ class NodeRegister:
             constants.STATUS_NORUN: set(),
             constants.STATUS_ABORTED: set(),
         }
-        return
 
     @property
     def completed_nodes(self):
@@ -124,7 +125,6 @@ class NodeRegister:
                 print(n.worker)
                 print(bucket)
                 print()
-        return
 
     def set_children_defaulted(self, node):
         stack = list(node.child_nodes)
@@ -136,8 +136,6 @@ class NodeRegister:
                 self.pending_nodes.remove(cur_node)
                 stack.extend(list(cur_node.child_nodes))
 
-        return
-
     def set_all_norun(self):
         self.register = {
             constants.STATUS_COMPLETED: set(),
@@ -148,7 +146,6 @@ class NodeRegister:
             constants.STATUS_NORUN: self.all_nodes,
             constants.STATUS_ABORTED: set(),
         }
-        return
 
     def exec_only(self, id_list):
         self.set_all_norun()

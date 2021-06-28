@@ -15,7 +15,6 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-import shutil
 from datetime import datetime as datetime
 from pyrunner.logger.abstract import Logger
 
@@ -93,7 +92,7 @@ class FileLogger(Logger):
                     "############################################################################\n\n"
                 )
             self.logfile_handle.close()
-            os.close(self._file_descriptor)
+            #os.close(self._file_descriptor)
 
     def get_file_handle(self):
         """

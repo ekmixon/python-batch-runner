@@ -14,7 +14,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-import os
+import os, sys
 import uuid
 from subprocess import Popen, PIPE
 from collections import deque
@@ -53,6 +53,11 @@ class Config:
             'exec_from_id'     : { 'type': int , 'preserve': False, 'env': None, 'value': None, 'default': None },
             'exec_to_id'       : { 'type': int , 'preserve': False, 'env': None, 'value': None, 'default': None },
             
+            # Configurable components
+            'logger'      : { 'type': str, 'preserve': True, 'env': 'APP_LOGGER_TYPE'      , 'value': None, 'default': 'FileLogger' },
+            'notification': { 'type': str, 'preserve': True, 'env': 'APP_NOTIFICATION_TYPE', 'value': None, 'default': 'EmailNotification' },
+            'serde'       : { 'type': str, 'preserve': True, 'env': 'APP_SERDE_TYPE'       , 'value': None, 'default': 'ListSerDe' },
+
             # Preservable runtime params
             'app_version'          : { 'type': str , 'preserve': True,  'env': 'APP_VERSION'              , 'value': None, 'default': '0.0.0' },
             'app_name'             : { 'type': str , 'preserve': True,  'env': 'APP_NAME'                 , 'value': None, 'default': "PyrunnerApp_{}".format(uuid.uuid4()) },
@@ -146,6 +151,11 @@ class Config:
         """
         if key not in self._attr:
             raise KeyError(_key_err_msg.format(key))
+        elif key == 'worker_dir':
+            if self._attr[key]['value']:
+                sys.path.remove(self._attr[key]['value'])
+            self._attr[key]['value'] = value
+            sys.path.append(value)
         else:
             if value is None:
                 self._attr[key]["value"] = None

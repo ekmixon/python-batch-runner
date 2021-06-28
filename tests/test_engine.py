@@ -17,29 +17,66 @@
 import os
 import pytest
 
+from pyrunner.core import config
 from pyrunner.core.engine import ExecutionEngine
 from pyrunner.core.register import NodeRegister
 from pyrunner.serde import ListSerDe
 
+
 @pytest.fixture
 def engine():
-  engine = ExecutionEngine()
-  engine.register = NodeRegister()
-  engine.config['tickrate'] = 0
-  engine.config['worker_dir'] = '{}/python'.format(os.path.dirname(os.path.realpath(__file__)))
-  return engine
+    engine = ExecutionEngine()
+    engine.register = NodeRegister()
+    config["tickrate"] = 0
+    config["test_mode"] = True
+    config["worker_dir"] = "{}/python".format(
+        os.path.dirname(os.path.realpath(__file__))
+    )
+    return engine
+
 
 def test_engine_success(engine):
-  engine.register.add_node(name='Say Hello 1', logfile=None, module='sample', worker='SayHello')
-  engine.register.add_node(name='Say Hello 2', logfile=None, module='sample', worker='SayHello')
-  engine.register.add_node(name='Say Hello 3', logfile=None, module='sample', worker='SayHello', dependencies=['Say Hello 1'])
-  res = engine.initiate(silent=False)
-  assert res == 0
+    engine.register.add_node(
+        name="Say Hello 1", logfile=None, module="sample", worker="SayHello"
+    )
+    engine.register.add_node(
+        name="Say Hello 2", logfile=None, module="sample", worker="SayHello"
+    )
+    engine.register.add_node(
+        name="Say Hello 3",
+        logfile=None,
+        module="sample",
+        worker="SayHello",
+        dependencies=["Say Hello 1"],
+    )
+    res = engine.initiate(silent=False)
+    assert res == 0
+
 
 def test_engine_failure(engine):
-  engine.register.add_node(name='Say Hello', logfile=None, module='sample', worker='SayHello')
-  engine.register.add_node(name='Fail Me 1', logfile=None, module='sample', worker='FailMe', dependencies=['Say Hello'])
-  engine.register.add_node(name='Fail Me 2', logfile=None, module='sample', worker='FailMe', dependencies=['Say Hello'])
-  engine.register.add_node(name='Fail Me 3', logfile=None, module='sample', worker='FailMe', dependencies=['Fail Me 2'])
-  res = engine.initiate(silent=True)
-  assert res == 2
+    engine.register.add_node(
+        name="Say Hello", logfile=None, module="sample", worker="SayHello"
+    )
+    engine.register.add_node(
+        name="Fail Me 1",
+        logfile=None,
+        module="sample",
+        worker="FailMe",
+        dependencies=["Say Hello"],
+    )
+    engine.register.add_node(
+        name="Fail Me 2",
+        logfile=None,
+        module="sample",
+        worker="FailMe",
+        dependencies=["Say Hello"],
+    )
+    engine.register.add_node(
+        name="Fail Me 3",
+        logfile=None,
+        module="sample",
+        worker="FailMe",
+        dependencies=["Fail Me 2"],
+    )
+    res = engine.initiate(silent=True)
+    assert res == 2

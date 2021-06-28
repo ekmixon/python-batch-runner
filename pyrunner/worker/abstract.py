@@ -14,7 +14,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-import traceback, sys, time, os
+import traceback, os
 import multiprocessing.sharedctypes
 
 import pyrunner.logger.file as lg
@@ -42,11 +42,21 @@ class Worker(ABC):
         self.logfile = logfile
         self.logger = None
         self.argv = argv
-        self._as_service = as_service
-        self._service_exec_interval = service_exec_interval
 
     def cleanup(self):
         self._retcode = None
+
+    def _try_exec(self, step, name, rc, required=False):
+        try:
+            self.retcode = step() or self.retcode
+        except NotImplementedError:
+            if required:
+                raise
+        except Exception as e:
+            self.logger.error("Uncaught Exception from Worker Thread ({})".format(name))
+            self.logger.error(str(e))
+            self.logger.error(traceback.format_exc())
+            self.retcode = rc
 
     # The _retcode is handled by multiprocessing.Manager and requires special handling.
     @property
@@ -74,62 +84,20 @@ class Worker(ABC):
         os.dup2(self.logger._file_descriptor, 2)
 
         # ON START
-        try:
-            self.retcode = self.on_start() or self.retcode
-        except NotImplementedError:
-            pass
-        except Exception as e:
-            self.logger.error("Uncaught Exception from Worker Thread (ON_START)")
-            self.logger.error(str(e))
-            self.logger.error(traceback.format_exc())
-            self.retcode = 902
+        self._try_exec(self.on_start, "ON_START", 902)
 
         # RUN
-        try:
-            while True:
-                self.retcode = self.run() or self.retcode
-                if not self._as_service:
-                    break
-                time.sleep(self._service_exec_interval)
-        except Exception as e:
-            self.logger.error("Uncaught Exception from Worker Thread (RUN)")
-            self.logger.error(str(e))
-            self.logger.error(traceback.format_exc())
-            self.retcode = 903
+        self._try_exec(self.run, "RUN", 903)
 
         if not self.retcode:
             # ON SUCCESS
-            try:
-                self.retcode = self.on_success() or self.retcode
-            except NotImplementedError:
-                pass
-            except Exception as e:
-                self.logger.error("Uncaught Exception from Worker Thread (ON_SUCCESS)")
-                self.logger.error(str(e))
-                self.logger.error(traceback.format_exc())
-                self.retcode = 904
+            self._try_exec(self.on_start, "ON_SUCCESS", 904)
         else:
             # ON FAIL
-            try:
-                self.on_fail() or self.retcode
-            except NotImplementedError:
-                pass
-            except Exception as e:
-                self.logger.error("Uncaught Exception from Worker Thread (ON_FAIL)")
-                self.logger.error(str(e))
-                self.logger.error(traceback.format_exc())
-                self.retcode = 905
+            self._try_exec(self.on_fail, "ON_FAIL", 905)
 
         # ON EXIT
-        try:
-            self.retcode = self.on_destroy() or self.retcode
-        except NotImplementedError:
-            pass
-        except Exception as e:
-            self.logger.error("Uncaught Exception from Worker Thread (ON_DESTROY)")
-            self.logger.error(str(e))
-            self.logger.error(traceback.format_exc())
-            self.retcode = 906
+        self._try_exec(self.on_start, "ON_DESTROY", 906)
 
         self.logger.close()
         self.logger = None

@@ -14,6 +14,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+
 import pyrunner.logger.file as lg
 from pyrunner.worker.abstract import Worker
 
@@ -115,6 +116,9 @@ class ExecutionNode:
             )
             self._proc.start()
         except Exception as e:
+            import traceback
+
+            print(traceback.format_exc())
             logger = lg.FileLogger(self.logfile)
             logger.open()
             logger.error(str(e))
@@ -133,7 +137,7 @@ class ExecutionNode:
           Integer return code if process has exited, otherwise `None`.
         """
         if not self._proc:
-            return 905
+            return 901
 
         running = self._proc.is_alive()
         retcode = 0
@@ -222,13 +226,11 @@ class ExecutionNode:
             self._child_nodes.add(child)
         for c in self._child_nodes:
             c.add_child_node(child, parent_id_list, named_deps)
-        return
 
     def pretty_print(self, indent=""):
         print("{}{} - {}".format(indent, self._id, self._name))
         for c in self._child_nodes:
             c.pretty_print("{}  ".format(indent))
-        return
 
     def get_elapsed_time(self):
         end_time = self._end_time if self._end_time else time.time()
@@ -328,8 +330,7 @@ class ExecutionNode:
 
     @argv.setter
     def argv(self, value):
-        self._argv = [str(x) for x in value] if value else []
-        return self
+        self.arguments(value)
 
     @property
     def max_attempts(self):
