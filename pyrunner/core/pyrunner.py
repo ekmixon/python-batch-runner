@@ -410,7 +410,7 @@ class PyRunner:
 
             for opt, arg in opts:
                 if opt == "-c":
-                    config["config_file"] = arg
+                    config['launch_params']["config_file"] = arg
                 elif opt == "-l":
                     config["proc_file"] = arg
                 elif opt in ["-d", "--debug"]:

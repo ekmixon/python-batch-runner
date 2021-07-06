@@ -14,8 +14,9 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-import time
+import time, queue
 from collections import deque
+from multiprocessing import Manager
 
 
 class Context:
@@ -33,10 +34,11 @@ class Context:
       interactive: Boolean flag to specify if app is executed in 'interactive' mode.
     """
 
-    def __init__(self, shared_dict, shared_queue):
+    def __init__(self):
+        self._manager = Manager()
+        self._shared_dict = self._manager.dict()
+        self._shared_queue = self._manager.Queue()
         self.interactive = False
-        self._shared_dict = shared_dict
-        self._shared_queue = shared_queue
         self._iter_keys = None
 
     def __iter__(self):

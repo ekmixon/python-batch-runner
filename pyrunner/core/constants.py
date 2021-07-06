@@ -52,3 +52,24 @@ if __name__ == '__main__':
     # Initiate job and exit driver with return code
     sys.exit(app.execute())
 """
+
+CONFIG_TEMPLATE = """# Framework configuration. These may be modified, but do not delete these.
+[framework]
+version=0.0.1
+app_name={app_name}
+app_root_dir=..
+worker_dir=${{app_root_dir}}/workers
+config_dir=${{app_root_dir}}/config
+temp_dir=${{app_root_dir}}/temp
+log_root_dir=${{app_root_dir}}/logs
+log_dir=${{log_root_dir}}/${{_:date}}
+log_retention=30
+
+
+# Any additional user-defined sections and variables can be added below.
+# All workers will have access to the config, which will store these values.
+# [my-section]
+# my_key=my_value
+
+# Values from other sections can also be referenced
+# another_dir=${{framework:app_root_dir}}/my_custom_dir"""

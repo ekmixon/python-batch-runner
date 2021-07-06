@@ -111,35 +111,9 @@ def setup():
     os.makedirs("{}/config".format(app_root))
     os.makedirs("{}/workers".format(app_root))
 
-    print("Creating Application Profile: {}/config/app_profile".format(app_root))
-    with open("{}/config/app_profile".format(app_root), "w") as app_profile:
-        app_profile.write("#!/bin/bash\n\n")
-        app_profile.write(
-            "# This app_profile will be sourced prior to execution of PyRunner job.\n"
-        )
-        app_profile.write(
-            '# NOTE: Only variables with "APP_" prefix will be available during job.\n'
-        )
-        app_profile.write("#       All other variables will be discarded.\n\n")
-        app_profile.write("export APP_VERSION=0.0.1\n\n")
-        app_profile.write('export APP_NAME="{}"\n'.format(app_name))
-        app_profile.write(
-            'export APP_ROOT_DIR="$(cd $(dirname ${BASH_SOURCE})/..; pwd)"\n'
-        )
-        app_profile.write('export APP_CONFIG_DIR="${APP_ROOT_DIR}/config"\n')
-        app_profile.write('export APP_TEMP_DIR="${APP_ROOT_DIR}/temp"\n')
-        app_profile.write('export APP_ROOT_LOG_DIR="${APP_ROOT_DIR}/logs"\n')
-        app_profile.write('export APP_LOG_RETENTION="30"\n')
-        app_profile.write('export APP_WORKER_DIR="${APP_ROOT_DIR}/workers"\n\n')
-        app_profile.write('DATE=$(date +"%Y-%m-%d")\n')
-        app_profile.write('export APP_EXEC_TIMESTAMP=$(date +"%Y%m%d_%H%M%S")\n\n')
-        app_profile.write('export APP_LOG_DIR="${APP_ROOT_LOG_DIR}/${DATE}"\n\n')
-        app_profile.write(
-            "if [ ! -e ${APP_LOG_DIR}  ]; then mkdir -p ${APP_LOG_DIR}; fi\n"
-        )
-        app_profile.write(
-            "if [ ! -e ${APP_TEMP_DIR} ]; then mkdir -p ${APP_TEMP_DIR}; fi\n"
-        )
+    print("Creating Application Configuration File: {}/config/app.cfg".format(app_root))
+    with open("{}/config/app.cfg".format(app_root), "w") as app_cfg_file:
+        app_cfg_file.write(constants.CONFIG_TEMPLATE.format(app_name=app_name))
 
     print(
         "Creating Blank Process List File: {}/config/{}.lst".format(app_root, app_name)
@@ -154,5 +128,3 @@ def setup():
     os.chmod("{}/{}.py".format(app_root, app_name), 0o744)
 
     print("\nComplete!\n")
-
-    return

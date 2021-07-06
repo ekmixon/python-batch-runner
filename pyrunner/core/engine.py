@@ -14,7 +14,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-from pyrunner.core import config
+from pyrunner.core.config import config
 from pyrunner.core.context import Context
 from pyrunner.core.signal import SignalHandler, SIG_ABORT, SIG_PULSE, SIG_REVIVE
 from multiprocessing import Manager
@@ -72,14 +72,18 @@ class ExecutionEngine:
 
         signal_handler = SignalHandler()
         self.start_time = time.time()
-        wait_interval = 1.0 / config["tickrate"] if config["tickrate"] >= 1 else 0
+        wait_interval = (
+            1.0 / int(config["launch_params"]["tickrate"])
+            if int(config["launch_params"]["tickrate"]) >= 1
+            else 0
+        )
         last_save = 0
 
         if not self.register:
             raise RuntimeError("NodeRegister has not been initialized!")
 
         # App lifecycle - RESTART
-        if config["restart"]:
+        if config["launch_params"]["restart"]:
             if self._on_restart_func:
                 self._on_restart_func()
         # App lifecycle - CREATE
@@ -128,16 +132,17 @@ class ExecutionEngine:
 
                 # Check pending nodes for eligibility to execute
                 for node in self.register.pending_nodes.copy():
-                    if (
-                        config["max_procs"] > 0
-                        and len(self.register.running_nodes) >= config["max_procs"]
-                    ):
+                    if int(config["launch_params"]["max_procs"]) > 0 and len(
+                        self.register.running_nodes
+                    ) >= int(config["launch_params"]["max_procs"]):
                         break
 
                     if not time.time() >= self._wait_until:
                         break
 
-                    self._wait_until = time.time() + config["time_between_tasks"]
+                    self._wait_until = time.time() + int(
+                        config["launch_params"]["time_between_tasks"]
+                    )
                     runnable = True
                     for p in node.parent_nodes:
                         if p.id >= 0 and p not in self.register.completed_nodes.union(
@@ -151,7 +156,7 @@ class ExecutionEngine:
                         node.execute()
                         self.register.running_nodes.add(node)
 
-                if not kwargs.get("silent") and not config["silent"]:
+                if not kwargs.get("silent") and not config["launch_params"]["silent"]:
                     self._print_current_state()
 
                 # Check for input requests from interactive mode
@@ -166,7 +171,7 @@ class ExecutionEngine:
 
                 # Persist state to disk at set intervals
                 if (
-                    not config["test_mode"]
+                    not (config["launch_params"]["test_mode"].trim().lower() == "true")
                     and self.save_state
                     and (time.time() - last_save) >= config["save_interval"]
                 ):
@@ -197,10 +202,16 @@ class ExecutionEngine:
         if self._on_destroy_func:
             self._on_destroy_func()
 
-        if config["dump_logs"] or (not kwargs.get("silent") and not config["silent"]):
+        if (config["launch_params"]["dump_logs"].trim().lower() == "true") or (
+            not kwargs.get("silent")
+            and not (config["launch_params"]["silent"].trim().lower() == "true")
+        ):
             self._print_final_state()
 
-        if not config["test_mode"] and self.save_state:
+        if (
+            not (config["launch_params"]["test_mode"].trim().lower() == "true")
+            and self.save_state
+        ):
             self.save_state()
 
         return len(self.register.failed_nodes)
@@ -219,7 +230,7 @@ class ExecutionEngine:
     def _print_current_state(self):
         elapsed = time.time() - self.start_time
 
-        if not config["debug"]:
+        if not (config["launch_params"]["debug"].trim().lower() == "true"):
             print(
                 "Pending: {} | Running: {} | Completed: {} | Failed: {} | Defaulted: {} | Time Elapsed: {:0.2f} sec.".format(
                     len(self.register.pending_nodes),
@@ -255,14 +266,18 @@ class ExecutionEngine:
             print("Aborted Processes:\n")
 
             for n in self.register.aborted_nodes:
-                self._print_node_info(n, config["dump_logs"])
+                self._print_node_info(
+                    n, (config["launch_params"]["dump_logs"].trim().lower() == "true")
+                )
 
         elif len(self.register.failed_nodes) + len(self.register.defaulted_nodes):
             print("Final Status: FAILURE\n")
             print("Failed Processes:\n")
 
             for n in self.register.failed_nodes:
-                self._print_node_info(n, config["dump_logs"])
+                self._print_node_info(
+                    n, (config["launch_params"]["dump_logs"].trim().lower() == "true")
+                )
 
         else:
             print("Final Status: SUCCESS\n")
@@ -288,29 +303,43 @@ class ExecutionEngine:
         print("")
 
     def save_state(self, suppress_output=False, only_ctllog=False):
-        if not config.ctllog_file:
+        if not config["framework"]["temp_dir"] or not config["framework"]["app_name"]:
+            ctllog_file = None
+        else:
+            ctllog_file = "{}/{}.ctllog".format(
+                config["framework"]["temp_dir"], config["framework"]["app_name"]
+            )
+
+        if not config["framework"]["temp_dir"] or not config["framework"]["app_name"]:
+            ctx_file = None
+        else:
+            ctx_file = "{}/{}.ctx".format(
+                config["framework"]["temp_dir"], config["framework"]["app_name"]
+            )
+
+        if not ctllog_file:
             if not suppress_output:
                 print("No ctllog defined")
             return
 
         if not suppress_output:
-            print("Saving Execution Graph File to: {}".format(config.ctllog_file))
+            print("Saving Execution Graph File to: {}".format(ctllog_file))
 
-        get_serde_instance().save_to_file(config.ctllog_file, self.register)
+        get_serde_instance().save_to_file(ctllog_file, self.register)
         if only_ctllog:
             return
 
         try:
 
             state_obj = {
-                "config": config.items(),
+                "config": config,
                 "shared_dict": self._shared_dict.copy(),
             }
 
             if not suppress_output:
-                print("Saving Context Object to File: {}".format(config.ctx_file))
-            tmp = config.ctx_file + ".tmp"
-            perm = config.ctx_file
+                print("Saving Context Object to File: {}".format(ctx_file))
+            tmp = ctx_file + ".tmp"
+            perm = ctx_file
             pickle.dump(state_obj, open(tmp, "wb"))
             if os.path.isfile(perm):
                 os.unlink(perm)
