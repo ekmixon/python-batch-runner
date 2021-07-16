@@ -235,9 +235,9 @@ class NodeRegister:
         if kwargs.get("logfile"):
             node.logfile = kwargs.get("logfile")
         if kwargs.get("argv"):
-            node.arguments = kwargs.get("argv")
+            node.argv = kwargs.get("argv")
         if kwargs.get("arguments"):
-            node.arguments = kwargs.get("arguments")
+            node.argv = kwargs.get("arguments")
         if kwargs.get("retries"):
             node.max_attempts = kwargs.get("retries")
         if kwargs.get("max_attempts"):

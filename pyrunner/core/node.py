@@ -36,48 +36,49 @@ class ExecutionNode:
         if name:
             self.name = name
 
-        self._id = int(id)
+        self.id = int(id)
+        self.argv = []
 
         # Num attempts/restart management
         self._attempts = 0
-        self._max_attempts = 1
-        self._retry_wait_time = 0
+        self.max_attempts = 1
+        self.retry_wait_time = 0
         self._wait_until = 0
 
         self._start_time = 0
         self._end_time = 0
-        self._timeout = float("inf")
+        self.timeout = float("inf")
         self._proc = None
-        self._context = None
+        self.context = None
 
         # Service execution mode properties
-        self._exec_interval = 1
+        self.exec_interval = 1
 
-        self._module = None
-        self._worker = None
+        self.module = None
+        self.worker = None
         self._worker_instance = None
 
-        self._parent_nodes = set()
-        self._child_nodes = set()
+        self.parent_nodes = set()
+        self.child_nodes = set()
 
     def __hash__(self):
-        return hash(self._id)
+        return hash(self.id)
 
     def __eq__(self, other):
-        return self._id == other._id
+        return self.id == other.id
 
     def __ne__(self, other):
-        return not (self._id == other._id)
+        return not (self.id == other.id)
 
     def __lt__(self, other):
-        return self._id < other._id
+        return self.id < other.id
 
     def is_runnable(self):
         return time.time() >= self._wait_until
 
     def revive(self):
         self._attempts = 0
-        self._wait_until = time.time() + self._exec_interval
+        self._wait_until = time.time() + self.exec_interval
 
     def execute(self):
         """
@@ -151,20 +152,20 @@ class ExecutionNode:
             if retcode > 0 and (self._attempts < self.max_attempts):
                 logger = lg.FileLogger(self.logfile)
                 logger.open(False)
-                self._wait_until = time.time() + self._retry_wait_time
+                self._wait_until = time.time() + self.retry_wait_time
                 logger.restart_message(
                     self._attempts,
                     "Waiting {} seconds before retrying...".format(
-                        self._retry_wait_time
+                        self.retry_wait_time
                     ),
                 )
                 logger.close(False)
                 retcode = -1
             self.cleanup()
-        elif (time.time() - self._start_time) >= self._timeout:
+        elif (time.time() - self._start_time) >= self.timeout:
             retcode = self.terminate(
                 "Worker runtime has exceeded the set maximum/timeout of {} seconds.".format(
-                    self._timeout
+                    self.timeout
                 )
             )
             running = False
@@ -186,50 +187,50 @@ class ExecutionNode:
 
     def cleanup(self):
         self._proc = None
-        self._context = None
+        self.context = None
         self._worker_instance = None
 
     # ########################## MISC ########################## #
 
     def get_node_by_id(self, id):
-        if self._id == id:
+        if self.id == id:
             return self
-        elif not self._child_nodes:
+        elif not self.child_nodes:
             return None
         else:
-            for n in self._child_nodes:
+            for n in self.child_nodes:
                 temp = n.get_node_by_id(id)
                 if temp:
                     return temp
         return None
 
     def get_node_by_name(self, name):
-        if self._name == name:
+        if self.name == name:
             return self
-        elif not self._child_nodes:
+        elif not self.child_nodes:
             return None
         else:
-            for n in self._child_nodes:
+            for n in self.child_nodes:
                 temp = n.get_node_by_name(name)
                 if temp:
                     return temp
         return None
 
     def add_parent_node(self, parent):
-        self._parent_nodes.add(parent)
+        self.parent_nodes.add(parent)
 
     def add_child_node(self, child, parent_id_list, named_deps=False):
-        if (named_deps and self._name in [x for x in parent_id_list]) or (
-            not named_deps and self._id in [int(x) for x in parent_id_list]
+        if (named_deps and self.name in [x for x in parent_id_list]) or (
+            not named_deps and self.id in [int(x) for x in parent_id_list]
         ):
             child.add_parent_node(self)
-            self._child_nodes.add(child)
-        for c in self._child_nodes:
+            self.child_nodes.add(child)
+        for c in self.child_nodes:
             c.add_child_node(child, parent_id_list, named_deps)
 
     def pretty_print(self, indent=""):
-        print("{}{} - {}".format(indent, self._id, self._name))
-        for c in self._child_nodes:
+        print("{}{} - {}".format(indent, self.id, self.name))
+        for c in self.child_nodes:
             c.pretty_print("{}  ".format(indent))
 
     def get_elapsed_time(self):
@@ -241,149 +242,6 @@ class ExecutionNode:
         else:
             return "00:00:00"
 
-    # ########################## SETTERS + GETTERS ########################## #
-
-    def _validate_string(self, name, value, nullable=False):
-        try:
-            if nullable and value.strip() in ["", None]:
-                return
-            str(value)
-        except Exception:
-            raise ValueError("Provided value is not castable to string")
-        if not value or not str(value).strip():
-            raise ValueError("{} cannot be None, blank, or only spaces".format(name))
-
-    @property
-    def id(self):
-        return getattr(self, "_id", -1)
-
-    @id.setter
-    def id(self, value):
-        if int(value) < -1:
-            raise ValueError("id must be -1 or greater")
-        self._id = int(value)
-        return self
-
-    @property
-    def name(self):
-        return getattr(self, "_name", None)
-
-    @name.setter
-    def name(self, value):
-        self._validate_string("name", value)
-        self._name = str(value).strip()
-        return self
-
-    @property
-    def context(self):
-        return getattr(self, "_context", None)
-
-    @context.setter
-    def context(self, value):
-        self._context = value
-        return self
-
-    @property
-    def logfile(self):
-        return getattr(self, "_logfile", None)
-
-    @logfile.setter
-    def logfile(self, value):
-        if value.strip() == "":
-            value = None
-        self._validate_string("logfile", value, True)
-        self._logfile = str(value).strip()
-        return self
-
-    @property
-    def module(self):
-        return getattr(self, "_module", None)
-
-    @module.setter
-    def module(self, value):
-        self._validate_string("module", value)
-        self._module = str(value).strip()
-        return self
-
-    @property
-    def worker(self):
-        return getattr(self, "_worker", None)
-
-    @worker.setter
-    def worker(self, value):
-        self._validate_string("worker", value)
-        self._worker = str(value).strip()
-        return self
-
-    @property
-    def arguments(self):
-        return getattr(self, "_argv", [])
-
-    @arguments.setter
-    def arguments(self, value):
-        self._argv = [str(x) for x in value] if value else []
-        return self
-
-    @property
-    def argv(self):
-        return getattr(self, "_argv", [])
-
-    @argv.setter
-    def argv(self, value):
-        self.arguments(value)
-
-    @property
-    def max_attempts(self):
-        return getattr(self, "_max_attempts", 1)
-
-    @max_attempts.setter
-    def max_attempts(self, value):
-        if int(value) < 1:
-            raise ValueError("max_attempts must be >= 1")
-        self._max_attempts = int(value)
-        return self
-
-    @property
-    def retry_wait_time(self):
-        return getattr(self, "_retry_wait_time", 0)
-
-    @retry_wait_time.setter
-    def retry_wait_time(self, value):
-        if int(value) < 0:
-            raise ValueError("retry_wait_time must be >= 0")
-        self._retry_wait_time = int(value)
-        return self
-
-    @property
-    def timeout(self):
-        return getattr(self, "_timeout", float("inf"))
-
-    @timeout.setter
-    def timeout(self, value):
-        if int(value) < 1:
-            raise ValueError("timeout must be greater than 0")
-        self._timeout = int(value)
-        return self
-
-    @property
-    def parent_nodes(self):
-        return self._parent_nodes
-
-    @property
-    def child_nodes(self):
-        return self._child_nodes
-
     @property
     def worker_class(self):
         return getattr(importlib.import_module(self.module), self.worker)
-
-    @property
-    def exec_interval(self):
-        return getattr(self, "_exec_interval", 0)
-
-    @exec_interval.setter
-    def exec_interval(self, value):
-        if int(value) < 0:
-            raise ValueError("exec_interval must be >= 0")
-        self._exec_interval = int(value)
-        return self

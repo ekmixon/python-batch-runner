@@ -412,27 +412,27 @@ class PyRunner:
                 if opt == "-c":
                     config['launch_params']["config_file"] = arg
                 elif opt == "-l":
-                    config["proc_file"] = arg
+                    config['launch_params']["proc_file"] = arg
                 elif opt in ["-d", "--debug"]:
-                    config["debug"] = True
+                    config['launch_params']["debug"] = True
                 elif opt in ["-n", "--max-procs"]:
-                    config["max_procs"] = int(arg)
+                    config['launch_params']["max_procs"] = int(arg)
                 elif opt in ["-r", "--restart"]:
-                    config["restart"] = True
+                    config['launch_params']["restart"] = True
                 elif opt in ["-x", "--exec-only"]:
-                    config["exec_only_list"] = [int(id) for id in arg.split(",")]
+                    config['launch_params']["exec_only_list"] = [int(id) for id in arg.split(",")]
                 elif opt in ["-N", "--norun"]:
-                    config["exec_disable_list"] = [int(id) for id in arg.split(",")]
+                    config['launch_params']["exec_disable_list"] = [int(id) for id in arg.split(",")]
                 elif opt in ["-D", "--from", "--descendents"]:
-                    config["exec_from_id"] = int(arg)
+                    config['launch_params']["exec_from_id"] = int(arg)
                 elif opt in ["-A", "--to", "--ancestors"]:
-                    config["exec_to_id"] = int(arg)
+                    config['launch_params']["exec_to_id"] = int(arg)
                 elif opt in ["-e", "--email"]:
-                    config["email"] = arg
+                    config['launch_params']["email"] = arg
                 elif opt == "--notify-on-fail":
-                    config["notify_on_fail"] = arg
+                    config['launch_params']["notify_on_fail"] = arg
                 elif opt == "--notify-on-success":
-                    config["nitory_on_success"] = arg
+                    config['launch_params']["notify_on_success"] = arg
                 elif opt == "--env":
                     parts = arg.split("=")
                     os.environ[parts[0]] = parts[1]

@@ -34,9 +34,7 @@ class Worker(ABC):
         - on_exit()
     """
 
-    def __init__(
-        self, context, logfile, argv, as_service=False, service_exec_interval=1
-    ):
+    def __init__(self, context, logfile, argv):
         self.context = context
         self._retcode = multiprocessing.sharedctypes.Value("i", 0)
         self.logfile = logfile
@@ -106,7 +104,6 @@ class Worker(ABC):
     def on_start(self):
         """
         Optional lifecycle method. Is only executed when the worker is started/restarted.
-        This part of the lifecycle is redundant to the run() method unless app is run as a service.
         """
         raise NotImplementedError('Method "on_start" is not implemented')
 
@@ -138,8 +135,3 @@ class Worker(ABC):
         after on_success() or on_fail().
         """
         raise NotImplementedError('Method "on_destroy" is not implemented')
-
-
-class ServiceWorker(Worker):
-    def __init__(self, context, logfile, argv, service_exec_interval=1):
-        super().__init__(context, logfile, argv, True, service_exec_interval)
