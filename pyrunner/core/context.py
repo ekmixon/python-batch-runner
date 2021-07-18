@@ -14,10 +14,23 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-import time, queue
+import time, os, pickle
 from collections import deque
 from multiprocessing import Manager
 
+__context = None
+__manager = None
+__shared_dict = None
+__shared_queue = None
+
+def get_context_instance():
+    global __context, __manager, __shared_dict, __shared_queue
+    if not __context:
+        __manager = Manager()
+        __shared_dict = __manager.dict()
+        __shared_queue = __manager.Queue()
+        __context = Context(__shared_dict, __shared_queue)
+    return __context
 
 class Context:
     """
@@ -34,15 +47,14 @@ class Context:
       interactive: Boolean flag to specify if app is executed in 'interactive' mode.
     """
 
-    def __init__(self):
-        self._manager = Manager()
-        self._shared_dict = self._manager.dict()
-        self._shared_queue = self._manager.Queue()
+    def __init__(self, shared_dict, shared_queue):
+        self.shared_dict = shared_dict
+        self.shared_queue = shared_queue
         self.interactive = False
         self._iter_keys = None
 
     def __iter__(self):
-        self._iter_keys = deque(self._shared_dict.keys())
+        self._iter_keys = deque(self.shared_dict.keys())
         return self
 
     def __next__(self):
@@ -52,37 +64,29 @@ class Context:
             return self._iter_keys.popleft()
 
     def __getitem__(self, key):
-        return self._shared_dict[key]
+        return self.shared_dict[key]
 
     def __setitem__(self, key, value):
-        self._shared_dict[key] = value
+        self.shared_dict[key] = value
 
     def __delitem__(self, key):
-        del self._shared_dict[key]
+        del self.shared_dict[key]
 
     def __contains__(self, key):
-        return key in self._shared_dict
+        return key in self.shared_dict
 
     def items(self):
-        return self._shared_dict.items()
-
-    @property
-    def shared_dict(self):
-        return self._shared_dict
-
-    @property
-    def shared_queue(self):
-        return self._shared_queue
+        return self.shared_dict.items()
 
     @property
     def keys(self):
-        return self._shared_dict.keys()
+        return self.shared_dict.keys()
 
     def has_key(self, key):
-        return key in self._shared_dict
+        return key in self.shared_dict
 
     def set(self, key, value):
-        self._shared_dict[key] = value
+        self.shared_dict[key] = value
 
     def get(self, key, default=None):
         """
@@ -97,9 +101,34 @@ class Context:
           Stored value for key or value provided via STDIN if 'interactive'
           attribute is True. Otherwise None.
         """
-        if self.interactive and not default and key not in self._shared_dict:
-            self._shared_queue.put(key)
-            while key not in self._shared_dict:
+        if self.interactive and not default and key not in self.shared_dict:
+            self.shared_queue.put(key)
+            while key not in self.shared_dict:
                 time.sleep(0.5)
 
-        return self._shared_dict.get(key, default)
+        return self.shared_dict.get(key, default)
+    
+    def load_from_file(self, file_path):
+        """
+        Loads context from a pickled file.
+
+        Args:
+          file_path: Path to file to load context from.
+        """
+        loaded = pickle.load(open(file_path, "rb"))
+        for k, v in loaded.items():
+            self.shared_dict[k] = v
+
+    def save_to_file(self, file_path):
+        """
+        Saves the current context to a file.
+
+        Args:
+          file_path: Path to file to save context to.
+        """
+        tmp = file_path + ".tmp"
+        perm = file_path
+        pickle.dump(self.shared_dict.copy(), open(tmp, "wb"))
+        if os.path.isfile(perm):
+            os.unlink(perm)
+        os.rename(tmp, perm)

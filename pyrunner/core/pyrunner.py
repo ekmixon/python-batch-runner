@@ -25,7 +25,7 @@ import pyrunner.notification as notification
 import pyrunner.autodoc.introspection as intro
 import pyrunner.core.constants as constants
 
-from pyrunner.core import config
+from pyrunner.core.config import config
 from pyrunner.core.engine import ExecutionEngine
 from pyrunner.core.register import NodeRegister
 from pyrunner.core.signal import SignalHandler, SIG_ABORT, SIG_REVIVE, SIG_PULSE
@@ -40,7 +40,6 @@ import time
 
 class PyRunner:
     def __init__(self, **kwargs):
-        self._environ = os.environ.copy()
         self._notification = notification.EmailNotification()
         self.signal_handler = SignalHandler()
 
@@ -48,9 +47,14 @@ class PyRunner:
         self.register = NodeRegister()
         self.engine = ExecutionEngine()
 
-        config["config_file"] = kwargs.get("config_file")
-        config["proc_file"] = kwargs.get("proc_file")
-        config["restart"] = kwargs.get("restart", False)
+        self.proc_file = kwargs.get("proc_file")
+        self.restart = kwargs.get("restart")
+
+        if "config_file" in kwargs:
+            config.load_cfg(kwargs["config_file"])
+        
+        if "proc_file" in kwargs:
+            self.load_proc_file(kwargs["proc_file"])
 
         self.parse_args(kwargs.get("parse_args", True))
 
@@ -63,10 +67,6 @@ class PyRunner:
         else:
             # Clear signals, if any, to ensure clean start.
             self.signal_handler.consume_all()
-
-    def reset_env(self):
-        os.environ.clear()
-        os.environ.update(self._environ)
 
     def dup_proc_is_running(self):
         self.signal_handler.emit(SIG_PULSE)
@@ -102,36 +102,6 @@ class PyRunner:
     @property
     def version(self):
         return __version__
-
-    @property
-    def log_dir(self):
-        return config["log_dir"]
-
-    @property
-    def config_file(self):
-        return config["config_file"]
-
-    @config_file.setter
-    def config_file(self, value):
-        config["config_file"] = value
-        return self
-
-    @property
-    def proc_file(self):
-        return config["proc_file"]
-
-    @proc_file.setter
-    def proc_file(self, value):
-        config["proc_file"] = value
-        return self
-
-    @property
-    def context(self):
-        return self.engine.context
-
-    @property
-    def restart(self):
-        return config["restart"]
 
     def plugin_serde(self, obj):
         if not isinstance(obj, serde.SerDe):
@@ -362,7 +332,7 @@ class PyRunner:
     def parse_args(self, run_getopts=True):
         abort, revive = False, False
 
-        opt_list = "c:l:n:e:x:N:D:A:t:drhiv"
+        opt_list = "n:e:x:N:D:A:t:drhiv"
         longopt_list = [
             "setup",
             "help",
@@ -409,11 +379,7 @@ class PyRunner:
                 sys.exit(1)
 
             for opt, arg in opts:
-                if opt == "-c":
-                    config['launch_params']["config_file"] = arg
-                elif opt == "-l":
-                    config['launch_params']["proc_file"] = arg
-                elif opt in ["-d", "--debug"]:
+                if opt in ["-d", "--debug"]:
                     config['launch_params']["debug"] = True
                 elif opt in ["-n", "--max-procs"]:
                     config['launch_params']["max_procs"] = int(arg)
@@ -476,12 +442,6 @@ class PyRunner:
                     sys.exit(0)
                 else:
                     raise ValueError("Error during parsing of opts")
-
-        # We need to check for and source the app_profile/config file ASAP,
-        # but only after --env vars are processed
-        if not config["config_file"]:
-            raise RuntimeError("Config file (app_profile) has not been provided")
-        config.source_config_file(config["config_file"])
 
         if abort:
             print(

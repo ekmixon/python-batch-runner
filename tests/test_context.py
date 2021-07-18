@@ -16,15 +16,17 @@
 
 import pytest
 import os
+from multiprocessing import Manager
 
 from pyrunner.core.context import Context
 
 abs_dir_path = os.path.dirname(os.path.realpath(__file__))
+manager = Manager()
 
 @pytest.fixture
 def ctx():
   '''Returns an empty Context object with loaded profile'''
-  return Context()
+  return Context(manager.dict(), manager.Queue())
 
 @pytest.mark.parametrize('key, value', [
   ('A', 1),

@@ -14,10 +14,10 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-import os
+import os, sys
 import pytest
 
-from pyrunner.core import config
+from pyrunner.core.config import config
 from pyrunner.core.engine import ExecutionEngine
 from pyrunner.core.register import NodeRegister
 from pyrunner.serde import ListSerDe
@@ -27,11 +27,12 @@ from pyrunner.serde import ListSerDe
 def engine():
     engine = ExecutionEngine()
     engine.register = NodeRegister()
-    config["tickrate"] = 0
-    config["test_mode"] = True
-    config["worker_dir"] = "{}/python".format(
+    config["launch_params"]["tickrate"] = '0'
+    config["launch_params"]["test_mode"] = 'True'
+    config["framework"]["worker_dir"] = "{}/python".format(
         os.path.dirname(os.path.realpath(__file__))
     )
+    sys.path.append(config["framework"]["worker_dir"])
     return engine
 
 

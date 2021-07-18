@@ -48,73 +48,57 @@ class ListSerDe(SerDe):
             details = [
                 x.strip(" |") for x in pipe_pattern.split(proc)[1:-1] if x != "|"
             ]
-            sub_details = []
 
-            # Substitute $ENV{...} vars with environment vars.
-            for item in details:
-                if "$ENV{" in item:
-                    subbed = []
-                    disect = re.split(r"\$ENV|}", item)
-                    for x in disect:
-                        if x[:1] == "{":
-                            val = os.environ[x[1:]]
-                            subbed.append(val)
-                        else:
-                            subbed.append(x)
-                    sub_details.append("".join(subbed))
-                else:
-                    sub_details.append(item)
-
-            node_id = int(sub_details[0])
+            node_id = int(details[0])
             if node_id in used_ids:
                 return False
             else:
                 used_ids.add(node_id)
 
-            dependencies = [int(x) for x in sub_details[1].split(",")]
+            dependencies = [int(x) for x in details[1].split(",")]
 
             if restart:
                 register.add_node(
                     id=node_id,
                     dependencies=dependencies,
-                    max_attempts=sub_details[2],
-                    retry_wait_time=sub_details[3],
-                    status=sub_details[4]
-                    if sub_details[4]
+                    max_attempts=details[2],
+                    retry_wait_time=details[3],
+                    status=details[4]
+                    if details[4]
                     in [constants.STATUS_COMPLETED, constants.STATUS_NORUN]
                     else constants.STATUS_PENDING,
-                    name=sub_details[6],
-                    module=sub_details[7],
-                    worker=sub_details[8],
+                    name=details[6],
+                    module=details[7],
+                    worker=details[8],
                     arguments=[
                         s.strip('"')
                         if s.strip().startswith('"') and s.strip().endswith('"')
                         else s.strip()
-                        for s in comma_pattern.split(sub_details[9])[1::2]
+                        for s in comma_pattern.split(details[9])[1::2]
                     ]
-                    if len(sub_details) > 9
+                    if len(details) > 9
                     else None,
-                    logfile=sub_details[10] if len(sub_details) > 10 else None,
+                    logfile=details[10] if len(details) > 10 else None,
                     named_deps=False,
                 )
             else:
                 register.add_node(
                     id=node_id,
                     dependencies=dependencies,
-                    max_attempts=sub_details[2],
-                    retry_wait_time=sub_details[3],
-                    name=sub_details[4],
-                    module=sub_details[5],
-                    worker=sub_details[6],
+                    max_attempts=details[2],
+                    retry_wait_time=details[3],
+                    name=details[4],
+                    module=details[5],
+                    worker=details[6],
                     arguments=[
                         s.strip('"')
                         if s.strip().startswith('"') and s.strip().endswith('"')
                         else s.strip()
-                        for s in comma_pattern.split(sub_details[7])[1::2]
+                        for s in comma_pattern.split(details[7])[1::2]
                     ]
-                    if len(sub_details) > 7
+                    if len(details) > 7
                     else None,
-                    logfile=sub_details[8] if len(sub_details) > 8 else None,
+                    logfile=details[8] if len(details) > 8 else None,
                     named_deps=False,
                 )
 

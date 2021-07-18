@@ -15,7 +15,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
-from pyrunner.core import config
+from pyrunner.core.config import config
 
 SIG_ABORT = "sig.abort"
 SIG_PAUSE = "sig.pause"
@@ -24,10 +24,17 @@ SIG_REVIVE = "sig.revive"
 
 _valid_signals = (SIG_ABORT, SIG_PAUSE, SIG_PULSE, SIG_REVIVE)
 
+__signal_handler = None
+
+def get_signal_handler_instance():
+    global __signal_handler
+    if __signal_handler is None:
+        __signal_handler = SignalHandler()
+    return __signal_handler
 
 class SignalHandler:
     def sig_file(self, sig):
-        return "{}/.{}.{}".format(config["temp_dir"], config["app_name"], sig)
+        return "{}/.{}.{}".format(config.get("framework", "temp_dir"), config.get("framework", "app_name"), sig)
 
     def emit(self, sig):
         if sig not in _valid_signals:

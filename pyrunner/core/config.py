@@ -14,9 +14,16 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-import os, sys, uuid, configparser, pathlib, inspect, getopt
+import os, sys, uuid, configparser, pathlib, inspect
 from datetime import datetime
 
+__config = None
+
+def get_config_instance():
+    global __config
+    if not __config:
+        __config = Config()
+    return __config
 
 class Config(configparser.ConfigParser):
     def __init__(self, *args, **kwargs):
@@ -24,7 +31,6 @@ class Config(configparser.ConfigParser):
             kwargs["interpolation"] = configparser.ExtendedInterpolation()
 
         super().__init__(*args, **kwargs)
-        self._is_interactive = hasattr(sys, "ps1")
 
         self.add_section("_")
         self["_"]["date"] = datetime.now().strftime("%Y-%m-%d")
@@ -32,7 +38,8 @@ class Config(configparser.ConfigParser):
 
         # Framework Defaults
         self.add_section("framework")
-        if self._is_interactive:
+        if hasattr(sys, "ps1"):
+            # We're in interactive mode, so we can only rely on the CWD
             self["framework"]["app_root_dir"] = os.getcwd()
         else:
             self["framework"]["app_root_dir"] = "{}/{}".format(
@@ -51,7 +58,7 @@ class Config(configparser.ConfigParser):
         self.add_section("launch_params")
         self["launch_params"]["config_file"] = ""
         self["launch_params"]["proc_file"] = ""
-        self["launch_params"]["restart"] = ""
+        self["launch_params"]["restart"] = "false"
         self["launch_params"]["cvar_list"] = ""
         self["launch_params"]["exec_proc_name"] = ""
         self["launch_params"]["exec_only_list"] = ""
@@ -59,18 +66,21 @@ class Config(configparser.ConfigParser):
         self["launch_params"]["exec_from_id"] = ""
         self["launch_params"]["exec_to_id"] = ""
         self["launch_params"]["nozip"] = "false"
-        self["launch_params"]["dump_logs"] = ""
+        self["launch_params"]["dump_logs"] = "false"
         self["launch_params"]["email"] = ""
         self["launch_params"]["silent"] = "false"
         self["launch_params"]["debug"] = "false"
         self["launch_params"]["tickrate"] = "1"
-        self["launch_params"]["time_between_tasks"] = ""
-        self["launch_params"]["save_interval"] = ""
-        self["launch_params"]["max_procs"] = ""
-        self["launch_params"]["dryrun"] = ""
-        self["launch_params"]["notify_on_fail"] = ""
-        self["launch_params"]["notify_on_success"] = ""
-        self["launch_params"]["test_mode"] = ""
+        self["launch_params"]["time_between_tasks"] = "0"
+        self["launch_params"]["save_interval"] = "10"
+        self["launch_params"]["max_procs"] = "-1"
+        self["launch_params"]["dryrun"] = "false"
+        self["launch_params"]["notify_on_fail"] = "true"
+        self["launch_params"]["notify_on_success"] = "true"
+        self["launch_params"]["test_mode"] = "false"
+
+        self.add_section("components")
+        self["components"]["serde"] = "JsonSerDe"
 
     def load_cfg(self, cfg_file):
         if not os.path.isfile(cfg_file):
@@ -86,3 +96,5 @@ class Config(configparser.ConfigParser):
         )
 
         os.chdir(temp)
+
+config = get_config_instance()

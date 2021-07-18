@@ -15,9 +15,8 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from pyrunner.core.config import config
-from pyrunner.core.context import Context
+from pyrunner.core.context import get_context_instance
 from pyrunner.core.signal import SignalHandler, SIG_ABORT, SIG_PULSE, SIG_REVIVE
-from multiprocessing import Manager
 from pyrunner.serde import get_serde_instance
 
 import sys, time, os, pickle
@@ -34,12 +33,7 @@ class ExecutionEngine:
         self.register = None
         self.start_time = None
         self._wait_until = 0
-
-        # Initialization of Manager proxy objects and Context
-        self._manager = Manager()
-        self._shared_dict = self._manager.dict()
-        self._shared_queue = self._manager.Queue()
-        self.context = Context(self._shared_dict, self._shared_queue)
+        self.context = get_context_instance()
 
         # Lifecycle hooks
         self._on_create_func = None
@@ -73,8 +67,8 @@ class ExecutionEngine:
         signal_handler = SignalHandler()
         self.start_time = time.time()
         wait_interval = (
-            1.0 / int(config["launch_params"]["tickrate"])
-            if int(config["launch_params"]["tickrate"]) >= 1
+            1.0 / config.getint("launch_params", "tickrate")
+            if config.getint("launch_params", "tickrate") >= 1
             else 0
         )
         last_save = 0
@@ -83,7 +77,7 @@ class ExecutionEngine:
             raise RuntimeError("NodeRegister has not been initialized!")
 
         # App lifecycle - RESTART
-        if config["launch_params"]["restart"]:
+        if config.getboolean("launch_params", "restart"):
             if self._on_restart_func:
                 self._on_restart_func()
         # App lifecycle - CREATE
@@ -132,17 +126,15 @@ class ExecutionEngine:
 
                 # Check pending nodes for eligibility to execute
                 for node in self.register.pending_nodes.copy():
-                    if int(config["launch_params"]["max_procs"]) > 0 and len(
+                    if config.getint("launch_params", "max_procs") > 0 and len(
                         self.register.running_nodes
-                    ) >= int(config["launch_params"]["max_procs"]):
+                    ) >= config.getint("launch_params", "max_procs"):
                         break
 
                     if not time.time() >= self._wait_until:
                         break
 
-                    self._wait_until = time.time() + int(
-                        config["launch_params"]["time_between_tasks"]
-                    )
+                    self._wait_until = time.time() + config.getint("launch_params", "time_between_tasks")
                     runnable = True
                     for p in node.parent_nodes:
                         if p.id >= 0 and p not in self.register.completed_nodes.union(
@@ -156,7 +148,7 @@ class ExecutionEngine:
                         node.execute()
                         self.register.running_nodes.add(node)
 
-                if not kwargs.get("silent") and not config["launch_params"]["silent"]:
+                if not kwargs.get("silent") and not config.getboolean("launch_params", "silent"):
                     self._print_current_state()
 
                 # Check for input requests from interactive mode
@@ -171,7 +163,7 @@ class ExecutionEngine:
 
                 # Persist state to disk at set intervals
                 if (
-                    not (config["launch_params"]["test_mode"].trim().lower() == "true")
+                    not config.getboolean("launch_params", "test_mode")
                     and self.save_state
                     and (time.time() - last_save) >= config["save_interval"]
                 ):
@@ -202,14 +194,14 @@ class ExecutionEngine:
         if self._on_destroy_func:
             self._on_destroy_func()
 
-        if (config["launch_params"]["dump_logs"].trim().lower() == "true") or (
+        if config.getboolean("launch_params", "dump_logs") or (
             not kwargs.get("silent")
-            and not (config["launch_params"]["silent"].trim().lower() == "true")
+            and not config.getboolean("launch_params", "silent")
         ):
             self._print_final_state()
 
         if (
-            not (config["launch_params"]["test_mode"].trim().lower() == "true")
+            not config.getboolean("launch_params", "test_mode")
             and self.save_state
         ):
             self.save_state()
@@ -230,7 +222,7 @@ class ExecutionEngine:
     def _print_current_state(self):
         elapsed = time.time() - self.start_time
 
-        if not (config["launch_params"]["debug"].trim().lower() == "true"):
+        if not config.getboolean("launch_params", "debug"):
             print(
                 "Pending: {} | Running: {} | Completed: {} | Failed: {} | Defaulted: {} | Time Elapsed: {:0.2f} sec.".format(
                     len(self.register.pending_nodes),
@@ -267,7 +259,7 @@ class ExecutionEngine:
 
             for n in self.register.aborted_nodes:
                 self._print_node_info(
-                    n, (config["launch_params"]["dump_logs"].trim().lower() == "true")
+                    n, config.getboolean("launch_params", "dump_logs")
                 )
 
         elif len(self.register.failed_nodes) + len(self.register.defaulted_nodes):
@@ -276,7 +268,7 @@ class ExecutionEngine:
 
             for n in self.register.failed_nodes:
                 self._print_node_info(
-                    n, (config["launch_params"]["dump_logs"].trim().lower() == "true")
+                    n, config.getboolean("launch_params", "dump_logs")
                 )
 
         else:
@@ -303,18 +295,18 @@ class ExecutionEngine:
         print("")
 
     def save_state(self, suppress_output=False, only_ctllog=False):
-        if not config["framework"]["temp_dir"] or not config["framework"]["app_name"]:
+        if not config.getstring("framework", "temp_dir") or not config.getstring("framework", "app_name"):
             ctllog_file = None
         else:
             ctllog_file = "{}/{}.ctllog".format(
-                config["framework"]["temp_dir"], config["framework"]["app_name"]
+                config.getstring("framework", "temp_dir"), config.getstring("framework", "app_name")
             )
 
-        if not config["framework"]["temp_dir"] or not config["framework"]["app_name"]:
+        if not config.getstring("framework", "temp_dir") or not config.getstring("framework", "app_name"):
             ctx_file = None
         else:
             ctx_file = "{}/{}.ctx".format(
-                config["framework"]["temp_dir"], config["framework"]["app_name"]
+                config.getstring("framework", "temp_dir"), config.getstring("framework", "app_name")
             )
 
         if not ctllog_file:
@@ -333,7 +325,7 @@ class ExecutionEngine:
 
             state_obj = {
                 "config": config,
-                "shared_dict": self._shared_dict.copy(),
+                "shared_dict": self.context._shared_dict.copy(),
             }
 
             if not suppress_output:

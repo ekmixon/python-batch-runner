@@ -58,23 +58,7 @@ class JsonSerDe(SerDe):
             else:
                 used_names.add(name)
 
-            # Substitute $ENV{...} vars with environment vars.
-            sub_details = dict()
-            for k, v in details.items():
-                if "$ENV{" in str(v):
-                    subbed = []
-                    disect = re.split(r"\$ENV|}", v)
-                    for x in disect:
-                        if x[:1] == "{":
-                            val = os.environ[x[1:]]
-                            subbed.append(val)
-                        else:
-                            subbed.append(x)
-                    sub_details[k] = "".join(subbed)
-                else:
-                    sub_details[k] = v
-
-            register.add_node(name=name, **sub_details)
+            register.add_node(name=name, **details)
 
         return register
 

@@ -17,8 +17,10 @@
 
 import pyrunner.logger.file as lg
 from pyrunner.worker.abstract import Worker
+from pyrunner.core.context import get_context_instance
+from pyrunner.core.config import config
 
-import time, multiprocessing, importlib
+import time, multiprocessing, importlib, os
 
 
 class ExecutionNode:
@@ -38,6 +40,7 @@ class ExecutionNode:
 
         self.id = int(id)
         self.argv = []
+        self._logfile = None
 
         # Num attempts/restart management
         self._attempts = 0
@@ -49,7 +52,7 @@ class ExecutionNode:
         self._end_time = 0
         self.timeout = float("inf")
         self._proc = None
-        self.context = None
+        self.context = get_context_instance()
 
         # Service execution mode properties
         self.exec_interval = 1
@@ -79,6 +82,18 @@ class ExecutionNode:
     def revive(self):
         self._attempts = 0
         self._wait_until = time.time() + self.exec_interval
+
+    @property
+    def logfile(self):
+        return self._logfile
+    
+    @logfile.setter
+    def logfile(self, logfile):
+        expanded = os.path.expandvars(logfile)
+        if not os.path.isabs(expanded):
+            self._logfile = os.path.join(config.getstring("framework", "log_dir"), expanded)
+        else:
+            self._logfile = expanded
 
     def execute(self):
         """
