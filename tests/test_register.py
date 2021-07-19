@@ -14,12 +14,8 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-import pytest, sys
+import pytest
 from pyrunner.core.register import NodeRegister
-from pyrunner.serde.list import ListSerDe
-from collections import deque
-#from pyrunner.core.context import Context
-#from multiprocessing import Manager
 
 #class StdinEmulator:
 #  def __init__(self, *args):

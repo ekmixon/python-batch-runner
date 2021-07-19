@@ -32,6 +32,12 @@ def get_context_instance():
         __context = Context(__shared_dict, __shared_queue)
     return __context
 
+def create_new_context():
+    global __manager
+    if not __manager:
+        __manager = Manager()
+    return Context(__manager.dict(), __manager.Queue())
+
 class Context:
     """
     Stores dictionary and queue objects to be shared across all processes.

@@ -16,12 +16,12 @@
 
 import os, re, json
 import pyrunner.core.constants as constants
-from pyrunner.serde.abstract import SerDe
+from pyrunner.jobspec.abstract import JobSpec
 from pyrunner.core.register import NodeRegister
 
 
-class JsonSerDe(SerDe):
-    def deserialize(self, proc_file, restart=False):
+class JsonFileJobSpec(JobSpec):
+    def load(self, proc_file, with_status=False):
         """
         Returns a NodeRegister represented by the contents of provided JSON file.
 
@@ -62,9 +62,17 @@ class JsonSerDe(SerDe):
 
         return register
 
-    def serialize(self, register):
+    def dump(self, proc_file, node_register, with_status=False):
+        node_list = []
+        
+        for grp in node_register.register:
+            for node in node_register.register[grp]:
+                node_list.append((node, grp))
+        
+        node_list.sort(key=(lambda n: n[0].id))
+
         obj = {"tasks": dict()}
-        for node in sorted(register.all_nodes, key=(lambda n: n.id)):
+        for node, status in node_list:
             obj["tasks"][node.name] = {
                 "module": node.module,
                 "worker": node.worker,
@@ -84,5 +92,15 @@ class JsonSerDe(SerDe):
                 obj["tasks"][node.name]["arguments"] = node.arguments
             if node.timeout != float("inf"):
                 obj["tasks"][node.name]["timeout"] = node.timeout
+            if with_status:
+                obj["tasks"][node.name]["status"] = status
+                obj["tasks"][node.name]["elapsed_time"] = node.get_elapsed_time()
 
-        return json.dumps(obj, indent=4)
+        tmp = proc_file + ".tmp"
+        perm = proc_file
+
+        with open(tmp, "w") as f:
+            json.dump(obj, f, indent=4)
+        if os.path.isfile(perm):
+            os.unlink(perm)
+        os.rename(tmp, perm)

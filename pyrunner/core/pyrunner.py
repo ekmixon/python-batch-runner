@@ -20,18 +20,17 @@ import shutil
 import zipfile
 import getopt
 
-import pyrunner.serde as serde
+import pyrunner.jobspec as jobspec
 import pyrunner.notification as notification
 import pyrunner.autodoc.introspection as intro
 import pyrunner.core.constants as constants
 
 from pyrunner.core.config import config
+from pyrunner.core.context import create_new_context
 from pyrunner.core.engine import ExecutionEngine
 from pyrunner.core.register import NodeRegister
 from pyrunner.core.signal import SignalHandler, SIG_ABORT, SIG_REVIVE, SIG_PULSE
 from pyrunner.version import __version__
-
-from pyrunner.notification import Notification
 
 from datetime import datetime as datetime
 import pickle
@@ -40,15 +39,43 @@ import time
 
 class PyRunner:
     def __init__(self, **kwargs):
-        self._notification = notification.EmailNotification()
+        self.context = create_new_context()
+        self.notification = notification.EmailNotification()
         self.signal_handler = SignalHandler()
-
-        self.serde_obj = serde.ListSerDe()
         self.register = NodeRegister()
-        self.engine = ExecutionEngine()
+        self.jobspec = jobspec.ListFileJobSpec()
+        self.sig_handler = SignalHandler()
+        self.start_time = None
+        self.restart = False
 
-        self.proc_file = kwargs.get("proc_file")
-        self.restart = kwargs.get("restart")
+        # Lifecycle hooks
+        self._on_create_func = None
+        self._on_start_func = None
+        self._on_restart_func = None
+        self._on_success_func = None
+        self._on_fail_func = None
+        self._on_destroy_func = None
+
+        # Signal switches
+        self._revive = False
+        self._abort = False
+
+        # Parse cmd args
+        self.parse_args(kwargs.get("parse_args", True))
+
+        if self._abort:
+            print(
+                f"Submitting ABORT signal to running job for: {config.get('framework', 'app_name')}"
+            )
+            self.signal_handler.emit(SIG_ABORT)
+            sys.exit(0)
+
+        if self._revive:
+            print(
+                f"Submitting REVIVE signal to running job for: {config.get('framework', 'app_name')}"
+            )
+            self.signal_handler.emit(SIG_REVIVE)
+            sys.exit(0)
 
         if "config_file" in kwargs:
             config.load_cfg(kwargs["config_file"])
@@ -56,13 +83,9 @@ class PyRunner:
         if "proc_file" in kwargs:
             self.load_proc_file(kwargs["proc_file"])
 
-        self.parse_args(kwargs.get("parse_args", True))
-
         if self.dup_proc_is_running():
             raise OSError(
-                'Another process for "{}" is already running!'.format(
-                    config["app_name"]
-                )
+                f'Another process for "{config["framework"]["app_name"]}" is already running!'
             )
         else:
             # Clear signals, if any, to ensure clean start.
@@ -77,76 +100,56 @@ class PyRunner:
         else:
             return False
 
-    def load_proc_file(self, proc_file, restart=False):
-        if not proc_file or not os.path.isfile(proc_file):
-            return False
-
-        self.register = self.serde_obj.deserialize(proc_file, restart)
-
-        if not self.register or not isinstance(self.register, NodeRegister):
-            return False
-
-        return True
-
-    @property
-    def notification(self):
-        return self._notification
-
-    @notification.setter
-    def notification(self, o):
-        if not issubclass(type(o), Notification):
-            raise TypeError("Not an extension of pyrunner.notification.Notification")
-        self._notification = o
-        return self
-
     @property
     def version(self):
         return __version__
 
-    def plugin_serde(self, obj):
-        if not isinstance(obj, serde.SerDe):
-            raise TypeError("SerDe plugin must implement the SerDe interface")
-        self.serde_obj = obj
+    #@property
+    #def notification(self):
+    #    return self._notification
 
-    def plugin_notification(self, obj):
-        if not isinstance(obj, notification.Notification):
-            raise TypeError(
-                "Notification plugin must implement the Notification interface"
-            )
-        self.notification = obj
+    #@notification.setter
+    #def notification(self, o):
+    #    if not issubclass(type(o), Notification):
+    #        raise TypeError("Not an extension of pyrunner.notification.Notification")
+    #    self._notification = o
+    #    return self
 
-    # Engine wiring
+    #def plugin_serde(self, obj):
+    #    if not isinstance(obj, serde.SerDe):
+    #        raise TypeError("SerDe plugin must implement the SerDe interface")
+    #    self.serde_obj = obj
+#
+    #def plugin_notification(self, obj):
+    #    if not isinstance(obj, notification.Notification):
+    #        raise TypeError(
+    #            "Notification plugin must implement the Notification interface"
+    #        )
+    #    self.notification = obj
+
+    # Job lifecycle hooks decorators
     def on_create(self, func):
-        self.engine.on_create(func)
-
+        self._on_create_func(func)
     def on_start(self, func):
-        self.engine.on_start(func)
-
+        self._on_start_func(func)
     def on_restart(self, func):
-        self.engine.on_restart(func)
-
+        self._on_restart_func(func)
     def on_success(self, func):
-        self.engine.on_success(func)
-
+        self._on_success_func(func)
     def on_fail(self, func):
-        self.engine.on_fail(func)
-
+        self._on_fail_func(func)
     def on_destroy(self, func):
-        self.engine.on_destroy(func)
+        self._on_destroy_func(func)
 
     # NodeRegister wiring
     def add_node(self, **kwargs):
         return self.register.add_node(**kwargs)
-
     def exec_only(self, id_list):
         return self.register.exec_only(id_list)
-
     def exec_to(self, id):
         return self.register.exec_to(id)
-
     def exec_from(self, id):
         return self.register.exec_from(id)
-
     def exec_disable(self, id_list):
         return self.register.exec_disable(id_list)
 
@@ -155,13 +158,11 @@ class PyRunner:
         if config["restart"]:
             self.load_state()
         elif config["proc_file"]:
-            self.load_proc_file(config["proc_file"])
-
-        # Inject Context var overrides
-        for k, v in config["cvar_list"]:
-            self.engine.context.set(k, v)
+            #self.load_proc_file(config["proc_file"])
+            self.jobspec.load(config["proc_file"])
 
         # Modify NodeRegister
+        """
         if config["exec_proc_name"]:
             self.exec_only([self.register.find_node(name=config["exec_proc_name"]).id])
         if config["exec_only_list"]:
@@ -172,24 +173,22 @@ class PyRunner:
             self.exec_from(config["exec_from_id"])
         if config["exec_to_id"] is not None:
             self.exec_to(config["exec_to_id"])
+        """
 
     def execute(self):
-        return self.run()
-
-    def run(self):
-        self.prepare()
+        #self.prepare()
 
         # Prepare engine
-        self.engine.register = self.register
+        #self.engine.register = self.register
 
-        # Short circuit for a dryrun
-        if config["dryrun"]:
-            self.print_documentation()
-            return 0
+        ## Short circuit for a dryrun
+        #if config["dryrun"]:
+        #    self.print_documentation()
+        #    return 0
 
         # Fire up engine
-        print("Executing PyRunner App: {}".format(config["app_name"]))
-        retcode = self.engine.initiate()
+        print(f"Executing PyRunner App: {config.get('framework', 'app_name')}")
+        retcode = self.initiate()
 
         should_notify = True
         if retcode == 0 and not config["notify_on_success"]:
@@ -214,20 +213,247 @@ class PyRunner:
 
         return retcode
 
-    def print_documentation(self):
-        while self.register.pending_nodes:
-            for node in self.register.pending_nodes.copy():
-                runnable = True
-                for p in node.parent_nodes:
-                    if p.id >= 0 and p not in self.register.completed_nodes.union(
-                        self.register.norun_nodes
-                    ):
-                        runnable = False
+    def initiate(self, **kwargs):
+        """Begins the execution loop."""
+        self.start_time = time.time()
+        wait_interval = (
+            1.0 / config.getint("launch_params", "tickrate")
+            if config.getint("launch_params", "tickrate") >= 1
+            else 0
+        )
+        last_save = 0
+
+        # App lifecycle - RESTART
+        if config.getboolean("launch_params", "restart"):
+            if self._on_restart_func:
+                self._on_restart_func()
+        # App lifecycle - CREATE
+        else:
+            if self._on_create_func:
+                self._on_create_func()
+
+        # App lifecycle - START
+        if self._on_start_func:
+            self._on_start_func()
+
+        # Execution loop
+        try:
+            while self.register.running_nodes or self.register.pending_nodes:
+                # Consume pulse signal, if any, to indicate app is already running
+                self.sig_handler.consume(SIG_PULSE)
+
+                # Check for abort signals
+                if self.sig_handler.consume(SIG_ABORT):
+                    print("ABORT signal received! Terminating all running Workers.")
+                    self._abort_all_workers()
+                    return -1
+
+                # Check for revive signals; revive failed nodes, if any
+                if self.sig_handler.consume(SIG_REVIVE):
+                    for node in self.register.failed_nodes.copy():
+                        node.revive()
+                        self.register.failed_nodes.remove(node)
+                        self.register.pending_nodes.add(node)
+                    for node in self.register.defaulted_nodes.copy():
+                        self.register.defaulted_nodes.remove(node)
+                        self.register.pending_nodes.add(node)
+
+                # Poll running nodes for completion/failure
+                for node in self.register.running_nodes.copy():
+                    retcode = node.poll()
+                    if retcode is not None:
+                        self.register.running_nodes.remove(node)
+                        if retcode > 0:
+                            self.register.failed_nodes.add(node)
+                            self.register.set_children_defaulted(node)
+                        elif retcode < 0:
+                            self.register.pending_nodes.add(node)
+                        else:
+                            self.register.completed_nodes.add(node)
+
+                # Check pending nodes for eligibility to execute
+                for node in self.register.pending_nodes.copy():
+                    if config.getint("launch_params", "max_procs") > 0 and len(
+                        self.register.running_nodes
+                    ) >= config.getint("launch_params", "max_procs"):
                         break
-                if runnable:
-                    self.register.pending_nodes.remove(node)
-                    intro.print_context_usage(node)
-                    self.register.completed_nodes.add(node)
+
+                    if not time.time() >= self._wait_until:
+                        break
+
+                    self._wait_until = time.time() + config.getint("launch_params", "time_between_tasks")
+                    runnable = True
+                    for p in node.parent_nodes:
+                        if p.id >= 0 and p not in self.register.completed_nodes.union(
+                            self.register.norun_nodes
+                        ):
+                            runnable = False
+                            break
+                    if runnable and node.is_runnable():
+                        self.register.pending_nodes.remove(node)
+                        node.context = self.context
+                        node.execute()
+                        self.register.running_nodes.add(node)
+
+                if not kwargs.get("silent") and not config.getboolean("launch_params", "silent"):
+                    self._print_current_state()
+
+                # Check for input requests from interactive mode
+                while (not self.context.shared_queue.empty()):
+                    key = self.context.shared_queue.get()
+                    value = input("Please provide value for '{}': ".format(key))
+                    self.context.set(key, value)
+
+                # Persist state to disk at set intervals
+                if (
+                    not config.getboolean("launch_params", "test_mode")
+                    and self.save_state
+                    and (time.time() - last_save) >= config["save_interval"]
+                ):
+                    self.save_state(True)
+                    last_save = time.time()
+
+                # Wait
+                if wait_interval > 0:
+                    time.sleep(
+                        wait_interval
+                        - ((time.time() - self.start_time) % wait_interval)
+                    )
+        except KeyboardInterrupt:
+            print("\nKeyboard Interrupt Received")
+            print("\nCancelling Execution")
+            self._abort_all_workers()
+            return -1
+
+        # App lifecycle - SUCCESS
+        if len(self.register.failed_nodes) == 0:
+            if self._on_success_func:
+                self._on_success_func()
+        # App lifecycle - FAIL (<0 is for ABORT or other interrupt)
+        elif len(self.register.failed_nodes) > 0 and self._on_fail_func:
+            self._on_fail_func()
+
+        # App lifecycle - DESTROY
+        if self._on_destroy_func:
+            self._on_destroy_func()
+
+        if config.getboolean("launch_params", "dump_logs") or (
+            not kwargs.get("silent")
+            and not config.getboolean("launch_params", "silent")
+        ):
+            self._print_final_state()
+
+        if (
+            not config.getboolean("launch_params", "test_mode")
+            and self.save_state
+        ):
+            self.save_state()
+
+        return len(self.register.failed_nodes)
+
+    def _abort_all_workers(self):
+        for node in self.register.running_nodes.copy():
+            node.terminate(
+                "Keyboard Interrupt (SIGINT) received. Terminating Worker and exiting."
+            )
+            self.register.running_nodes.remove(node)
+            self.register.aborted_nodes.add(node)
+            self.register.set_children_defaulted(node)
+        self.save_state(False)
+        self._print_final_state(True)
+
+    def _print_current_state(self):
+        elapsed = time.time() - self.start_time
+
+        if not config.getboolean("launch_params", "debug"):
+            print(
+                "Pending: {} | Running: {} | Completed: {} | Failed: {} | Defaulted: {} | Time Elapsed: {:0.2f} sec.".format(
+                    len(self.register.pending_nodes),
+                    len(self.register.running_nodes),
+                    len(self.register.completed_nodes),
+                    len(self.register.failed_nodes),
+                    len(self.register.defaulted_nodes),
+                    elapsed,
+                ),
+                flush=True,
+            )
+        else:
+            print(chr(27) + "[2J")
+            print("Elapsed Time: {:0.2f}".format(elapsed))
+            if self.register.pending_nodes:
+                print("\nPENDING TASKS")
+            for p in self.register.pending_nodes:
+                print("  {} - {}".format(p.id, p.name))
+            if self.register.failed_nodes.union(self.register.defaulted_nodes):
+                print("\nFAILED TASKS")
+            for p in self.register.failed_nodes.union(self.register.defaulted_nodes):
+                print("  {} - {}".format(p.id, p.name))
+            if self.register.running_nodes:
+                print("\nRUNNING TASKS")
+            for p in self.register.running_nodes:
+                print("  {} - {}".format(p.id, p.name))
+
+    def _print_final_state(self, aborted=False):
+        print("\nCompleted in {:0.2f} seconds\n".format(time.time() - self.start_time))
+
+        if aborted:
+            print("Final Status: ABORTED\n")
+            print("Aborted Processes:\n")
+
+            for n in self.register.aborted_nodes:
+                self._print_node_info(
+                    n, config.getboolean("launch_params", "dump_logs")
+                )
+
+        elif len(self.register.failed_nodes) + len(self.register.defaulted_nodes):
+            print("Final Status: FAILURE\n")
+            print("Failed Processes:\n")
+
+            for n in self.register.failed_nodes:
+                self._print_node_info(
+                    n, config.getboolean("launch_params", "dump_logs")
+                )
+
+        else:
+            print("Final Status: SUCCESS\n")
+
+    def _print_node_info(self, n, dump_logs=False):
+        if dump_logs:
+            print(
+                "############################################################################"
+            )
+
+        print("# ID: {}".format(n.id))
+        print("# Name: {}".format(n.name))
+        print("# Module: {}".format(n.module))
+        print("# Worker: {}".format(n.worker))
+        print("# Arguments: {}".format(n.arguments))
+        print("# Log File: {}".format(n.logfile))
+
+        if dump_logs:
+            with open(n.logfile, "r") as f:
+                for line in f:
+                    print(line, end="")
+
+        print("")
+
+    def save_state(self, suppress_output=False):
+        if not config.get("framework", "temp_dir"):
+            return
+
+        ctllog_file = "{}/{}.ctllog".format(
+            config.get("framework", "temp_dir"), config.get("framework", "app_name")
+        )
+        if not suppress_output:
+            print("Saving Execution Graph File to: {}".format(ctllog_file))
+        self.jobspec.dump(ctllog_file, self.register)
+
+        ctx_file = "{}/{}.ctx".format(
+            config.get("framework", "temp_dir"), config.get("framework", "app_name")
+        )
+        if not suppress_output:
+            print("Saving Context Object to File: {}".format(ctx_file))
+        self.context.save_to_file(ctx_file)
 
     def cleanup_log_files(self):
         if config["log_retention"] < 0:
@@ -329,45 +555,32 @@ class PyRunner:
             return False
         return True
 
-    def parse_args(self, run_getopts=True):
-        abort, revive = False, False
+    def print_documentation(self):
+        while self.register.pending_nodes:
+            for node in self.register.pending_nodes.copy():
+                runnable = True
+                for p in node.parent_nodes:
+                    if p.id >= 0 and p not in self.register.completed_nodes.union(
+                        self.register.norun_nodes
+                    ):
+                        runnable = False
+                        break
+                if runnable:
+                    self.register.pending_nodes.remove(node)
+                    intro.print_context_usage(node)
+                    self.register.completed_nodes.add(node)
 
+    def parse_args(self, run_getopts=True):
         opt_list = "n:e:x:N:D:A:t:drhiv"
         longopt_list = [
-            "setup",
-            "help",
-            "nozip",
-            "interactive",
-            "abort",
-            "restart",
-            "version",
-            "dryrun",
-            "debug",
-            "silent",
-            "preserve-context",
-            "dump-logs",
-            "allow-duplicate-jobs",
-            "email=",
-            "email-on-fail=",
-            "email-on-success=",
-            "env=",
-            "cvar=",
-            "context=",
-            "time-between-tasks=",
-            "to=",
-            "from=",
-            "descendants=",
-            "ancestors=",
-            "norun=",
-            "exec-only=",
-            "exec-proc-name=",
-            "max-procs=",
-            "serde=",
-            "exec-loop-interval=",
-            "notify-on-fail=",
-            "notify-on-success=",
-            "service-exec-interval=",
-            "revive",
+            "setup", "help", "nozip", "interactive", "abort",
+            "restart", "version", "debug", "silent", "dump-logs",
+            "allow-duplicate-jobs", "email=", "email-on-fail=",
+            "email-on-success=", "env=", "cvar=", "context=",
+            "time-between-tasks=", "to=", "from=", "descendants=",
+            "ancestors=", "norun=", "exec-only=", "exec-proc-name=",
+            "max-procs=", "notify-on-fail=", "notify-on-success=",
+            "revive"
         ]
 
         if run_getopts:
@@ -404,36 +617,27 @@ class PyRunner:
                     os.environ[parts[0]] = parts[1]
                 elif opt == "--cvar":
                     parts = arg.split("=")
-                    config["cvar_list"].append((parts[0], parts[1]))
+                    self.context[parts[0]] = parts[1]
                 elif opt == "--nozip":
                     config["nozip"] = True
                 elif opt == "--dump-logs":
                     config["dump_logs"] = True
-                elif opt == "--dryrun":
-                    config["dryrun"] = True
                 elif opt in ["-i", "--interactive"]:
-                    self.engine.context.interactive = True
+                    self.context.interactive = True
                 elif opt in ["-t", "--tickrate"]:
                     config["tickrate"] = int(arg)
                 elif opt in ["--time-between-tasks"]:
                     config["time_between_tasks"] = int(arg)
-                elif opt in ["--preserve-context"]:
-                    self.preserve_context = True
                 elif opt in ["--allow-duplicate-jobs"]:
                     config["allow_duplicate_jobs"] = True
                 elif opt in ["--exec-proc-name"]:
                     config["exec_proc_name"] = arg
-                elif opt == "--service-exec-interval":
-                    config["service_exec_interval"] = int(arg)
                 elif opt == "--revive":
-                    revive = True
+                    self._revive = True
                 elif opt == "--abort":
-                    abort = True
+                    self._abort = True
                 elif opt == "--silent":
                     config["silent"] = True
-                elif opt in ["--serde"]:
-                    if arg.lower() == "json":
-                        self.plugin_serde(serde.JsonSerDe())
                 elif opt in ("-h", "--help"):
                     self.show_help()
                     sys.exit(0)
@@ -442,28 +646,6 @@ class PyRunner:
                     sys.exit(0)
                 else:
                     raise ValueError("Error during parsing of opts")
-
-        if abort:
-            print(
-                "Submitting ABORT signal to running job for: {}".format(
-                    config["app_name"]
-                )
-            )
-            self.signal_handler.emit(SIG_ABORT)
-            sys.exit(0)
-
-        if revive:
-            print(
-                "Submitting REVIVE signal to running job for: {}".format(
-                    config["app_name"]
-                )
-            )
-            self.signal_handler.emit(SIG_REVIVE)
-            sys.exit(0)
-
-        # Check if restart is possible (ctllog/ctx files exist)
-        if config["restart"] and not self.is_restartable():
-            config["restart"] = False
 
     def show_help(self):
         print(
@@ -484,13 +666,11 @@ class PyRunner:
                 -d,  --debug                              Prints list of Pending, Running, Failed, and Defaulted tasks instead of summary counts.
                 -i,  --interactive                        Interactive mode. This will force the execution engine to request user input for each non-existent Context variable.
                      --env <VAR_NAME=var_value>           Provide key/value pair to export to the environment prior to execution. Can provide this option multiple times.
-                     --cvar <VAR_NAME=var_value>          Provide key/value pair to initialize the Context object with prior to execution. Can provide this option multiple times.
+                     --ctx <VAR_NAME=var_value>           Provide key/value pair to initialize the Context object with prior to execution. Can provide this option multiple times.
                      --nozip                              Disable behavior which zips up all log files after job exit.
                      --dump-logs                          Enable behavior which prints all failure logs, if any, to STDOUT after job exit.
                 -t,  --tickrate <num>                     Number of times per second that the executon engine should poll child processes/launch new processes. Default is 1.
                      --time-between-tasks <seconds>       Number of seconds, at minimum, that the execution engine should wait after launching a process before launching another.
-                     --serde <serializer/deserializer>    Specify the process list serializer/deserializer. Default is LST.
-                     --preserve-context                   Disables behavior which deletes the job's context file after successful job exit.
                      --allow-duplicate-jobs               Enables running more than 1 instance of a unique job (based on APP_NAME).
                      --abort                              Aborts running instance of a job (based on APP_NAME), if any.
                      --setup                              Run the PyRunner basic project setup.

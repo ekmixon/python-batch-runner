@@ -20,7 +20,6 @@ import pytest
 from pyrunner.core.config import config
 from pyrunner.core.engine import ExecutionEngine
 from pyrunner.core.register import NodeRegister
-from pyrunner.serde import ListSerDe
 
 
 @pytest.fixture

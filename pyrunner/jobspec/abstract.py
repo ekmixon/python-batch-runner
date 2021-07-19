@@ -18,17 +18,15 @@ import os
 from abc import ABCMeta, abstractmethod
 
 
-class SerDe:
+class JobSpec(metaclass=ABCMeta):
     """
     Implementations of this abstract class serve to translate between a
     NodeRegister and it's off-memory/persistant representation on the file system
     or elsewhere.
     """
 
-    __metaclass__ = ABCMeta
-
     @abstractmethod
-    def serialize(self, node_register):
+    def dump(self, proc_file, node_register, with_status):
         """
         This method must be implemented in the child class to translate a provided
         NodeRegister instance to it's target off-memory representation.
@@ -36,23 +34,9 @@ class SerDe:
         pass
 
     @abstractmethod
-    def deserialize(self, proc_file, restart=False):
+    def load(self, proc_file, with_status=False):
         """
-        This method must be implemented in teh child class to translate it's
+        This method must be implemented in the child class to translate it's
         off-memory representation to a NodeRegister instance.
         """
         pass
-
-    def save_to_file(self, filepath, node_register):
-        tmp = filepath + ".tmp"
-        perm = filepath
-
-        try:
-            with open(tmp, "w") as file:
-                file.write(self.serialize(node_register))
-            if os.path.isfile(perm):
-                os.unlink(perm)
-            os.rename(tmp, perm)
-        except Exception:
-            print("Failure in save_to_file()")
-            raise

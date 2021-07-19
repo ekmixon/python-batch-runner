@@ -30,7 +30,7 @@ class Config(configparser.ConfigParser):
         if "interpolation" not in kwargs:
             kwargs["interpolation"] = configparser.ExtendedInterpolation()
 
-        super().__init__(*args, **kwargs)
+        super().__init__(os.environ, *args, **kwargs)
 
         self.add_section("_")
         self["_"]["date"] = datetime.now().strftime("%Y-%m-%d")

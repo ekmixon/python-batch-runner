@@ -16,12 +16,12 @@
 
 import os, re
 import pyrunner.core.constants as constants
-from pyrunner.serde.abstract import SerDe
+from pyrunner.jobspec.abstract import JobSpec
 from pyrunner.core.register import NodeRegister
 
 
-class ListSerDe(SerDe):
-    def deserialize(self, proc_file, restart=False):
+class ListFileJobSpec(JobSpec):
+    def load(self, proc_file, with_status=False):
         print("Processing Process List File: {}".format(proc_file))
         if not proc_file or not os.path.isfile(proc_file):
             raise FileNotFoundError("Process file {} does not exist.".format(proc_file))
@@ -57,7 +57,7 @@ class ListSerDe(SerDe):
 
             dependencies = [int(x) for x in details[1].split(",")]
 
-            if restart:
+            if with_status:
                 register.add_node(
                     id=node_id,
                     dependencies=dependencies,
@@ -104,31 +104,64 @@ class ListSerDe(SerDe):
 
         return register
 
-    def get_ctllog_line(self, node, status):
+    def get_ctllog_line(self, node, status=None):
         parent_id_list = [str(x.id) for x in node.parent_nodes]
         parent_id_str = ",".join(parent_id_list) if parent_id_list else "-1"
-        return "|".join(
-            [
-                str(node.id),
-                parent_id_str,
-                str(node.max_attempts),
-                str(node.retry_wait_time),
-                status,
-                node.get_elapsed_time(),
-                node.name,
-                node.module,
-                node.worker,
-                ",".join(node.arguments),
-                node.logfile,
-            ]
-        )
 
-    def serialize(self, register):
+        if status:
+            return "|".join(
+                [
+                    str(node.id),
+                    parent_id_str,
+                    str(node.max_attempts),
+                    str(node.retry_wait_time),
+                    status,
+                    node.get_elapsed_time(),
+                    node.name,
+                    node.module,
+                    node.worker,
+                    ",".join(node.arguments),
+                    node.logfile,
+                ]
+            )
+        else:
+            return "|".join(
+                [
+                    str(node.id),
+                    parent_id_str,
+                    str(node.max_attempts),
+                    str(node.retry_wait_time),
+                    node.name,
+                    node.module,
+                    node.worker,
+                    ",".join(node.arguments),
+                    node.logfile,
+                ]
+            )
+
+    def dump(self, proc_file, node_register, with_status=False):
         node_list = []
-        for grp in register.register:
-            for node in register.register[grp]:
+        
+        for grp in node_register.register:
+            for node in node_register.register[grp]:
                 node_list.append((node, grp))
+        
         node_list.sort(key=(lambda n: n[0].id))
-        return "{}\n\n".format(constants.HEADER_PYTHON) + "\n".join(
-            [self.get_ctllog_line(node, status) for node, status in node_list]
-        )
+
+        if with_status:
+            body = "{}\n\n".format(constants.HEADER_PYTHON) + "\n".join(
+                [self.get_ctllog_line(node, status) for node, status in node_list]
+            )
+        else:
+            body = "{}\n\n".format(constants.HEADER_PYTHON) + "\n".join(
+                [self.get_ctllog_line(node) for node in node_list]
+            )
+
+        tmp = proc_file + ".tmp"
+        perm = proc_file
+
+        with open(tmp, "w") as f:
+            f.write(body)
+        if os.path.isfile(perm):
+            os.unlink(perm)
+        os.rename(tmp, perm)

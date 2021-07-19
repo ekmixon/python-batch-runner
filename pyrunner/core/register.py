@@ -246,10 +246,14 @@ class NodeRegister:
             node.retry_wait_time = kwargs.get("retry_wait_time")
         if kwargs.get("timeout"):
             node.timeout = kwargs.get("timeout")
+        
+        status = kwargs.get("status")
+        if status not in [constants.STATUS_COMPLETED, constants.STATUS_NORUN]:
+            status = constants.STATUS_PENDING
 
         return self.add_node_object(
             node,
-            kwargs.get("status", constants.STATUS_PENDING),
+            status,
             kwargs.get("dependencies", ["PyRunnerRootNode"]),
             kwargs.get("named_deps", True),
         )

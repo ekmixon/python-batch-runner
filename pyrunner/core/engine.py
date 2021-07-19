@@ -17,7 +17,7 @@
 from pyrunner.core.config import config
 from pyrunner.core.context import get_context_instance
 from pyrunner.core.signal import SignalHandler, SIG_ABORT, SIG_PULSE, SIG_REVIVE
-from pyrunner.serde import get_serde_instance
+#from pyrunner.serde import get_serde_instance
 
 import sys, time, os, pickle
 
@@ -33,7 +33,6 @@ class ExecutionEngine:
         self.register = None
         self.start_time = None
         self._wait_until = 0
-        self.context = get_context_instance()
 
         # Lifecycle hooks
         self._on_create_func = None
@@ -63,7 +62,7 @@ class ExecutionEngine:
 
     def initiate(self, **kwargs):
         """Begins the execution loop."""
-
+        context = get_context_instance()
         signal_handler = SignalHandler()
         self.start_time = time.time()
         wait_interval = (
@@ -144,7 +143,7 @@ class ExecutionEngine:
                             break
                     if runnable and node.is_runnable():
                         self.register.pending_nodes.remove(node)
-                        node.context = self.context
+                        node.context = context
                         node.execute()
                         self.register.running_nodes.add(node)
 
@@ -152,14 +151,10 @@ class ExecutionEngine:
                     self._print_current_state()
 
                 # Check for input requests from interactive mode
-                while (
-                    self.context
-                    and self.context.shared_queue
-                    and not self.context.shared_queue.empty()
-                ):
-                    key = self.context.shared_queue.get()
+                while (not context.shared_queue.empty()):
+                    key = context.shared_queue.get()
                     value = input("Please provide value for '{}': ".format(key))
-                    self.context.set(key, value)
+                    context.set(key, value)
 
                 # Persist state to disk at set intervals
                 if (
@@ -216,7 +211,7 @@ class ExecutionEngine:
             self.register.running_nodes.remove(node)
             self.register.aborted_nodes.add(node)
             self.register.set_children_defaulted(node)
-        self.save_state(False, True)
+        self.save_state(False)
         self._print_final_state(True)
 
     def _print_current_state(self):
@@ -294,49 +289,21 @@ class ExecutionEngine:
 
         print("")
 
-    def save_state(self, suppress_output=False, only_ctllog=False):
-        if not config.getstring("framework", "temp_dir") or not config.getstring("framework", "app_name"):
-            ctllog_file = None
-        else:
-            ctllog_file = "{}/{}.ctllog".format(
-                config.getstring("framework", "temp_dir"), config.getstring("framework", "app_name")
-            )
-
-        if not config.getstring("framework", "temp_dir") or not config.getstring("framework", "app_name"):
-            ctx_file = None
-        else:
-            ctx_file = "{}/{}.ctx".format(
-                config.getstring("framework", "temp_dir"), config.getstring("framework", "app_name")
-            )
-
-        if not ctllog_file:
-            if not suppress_output:
-                print("No ctllog defined")
+    def save_state(self, suppress_output=False):
+        if not config.get("framework", "temp_dir"):
             return
 
+        ctllog_file = "{}/{}.ctllog".format(
+            config.get("framework", "temp_dir"), config.get("framework", "app_name")
+        )
         if not suppress_output:
             print("Saving Execution Graph File to: {}".format(ctllog_file))
-
         get_serde_instance().save_to_file(ctllog_file, self.register)
-        if only_ctllog:
-            return
 
-        try:
-
-            state_obj = {
-                "config": config,
-                "shared_dict": self.context._shared_dict.copy(),
-            }
-
-            if not suppress_output:
-                print("Saving Context Object to File: {}".format(ctx_file))
-            tmp = ctx_file + ".tmp"
-            perm = ctx_file
-            pickle.dump(state_obj, open(tmp, "wb"))
-            if os.path.isfile(perm):
-                os.unlink(perm)
-            os.rename(tmp, perm)
-
-        except Exception:
-            print("Failure in save_context()")
-            raise
+        ctx_file = "{}/{}.ctx".format(
+            config.get("framework", "temp_dir"), config.get("framework", "app_name")
+        )
+        if not suppress_output:
+            print("Saving Context Object to File: {}".format(ctx_file))
+        context = get_context_instance()
+        context.save_to_file(ctx_file)
