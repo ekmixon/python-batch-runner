@@ -22,7 +22,8 @@ from email.message import EmailMessage
 
 class EmailNotification(Notification):
     def emit_notification(self, config, register):
-        if not config["email"]:
+        return
+        if not config["launch_params"]["email"]:
             print("Email address not provided - skipping notification email")
             return 0
 

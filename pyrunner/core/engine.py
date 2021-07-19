@@ -62,6 +62,8 @@ class ExecutionEngine:
 
     def initiate(self, **kwargs):
         """Begins the execution loop."""
+        print(config.get("framework", "worker_dir"))
+        sys.path.append(config.get("framework", "worker_dir"))
         context = get_context_instance()
         signal_handler = SignalHandler()
         self.start_time = time.time()

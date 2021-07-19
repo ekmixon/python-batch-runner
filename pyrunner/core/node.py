@@ -91,9 +91,19 @@ class ExecutionNode:
     def logfile(self, logfile):
         expanded = os.path.expandvars(logfile)
         if not os.path.isabs(expanded):
-            self._logfile = os.path.join(config.getstring("framework", "log_dir"), expanded)
+            self._logfile = os.path.join(config.get("framework", "log_dir"), expanded)
         else:
             self._logfile = expanded
+
+    def worker_spawner(self):
+        print(self.module)
+        print(self.worker)
+        spec = importlib.util.spec_from_file_location(self.module, config['framework']['worker_dir'] + '/' + self.module + '.py')
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        worker = getattr(module, self.worker)
+        instance = worker(self.context, self.logfile, self.argv)
+        instance.protected_run()
 
     def execute(self):
         """
@@ -130,6 +140,10 @@ class ExecutionNode:
             self._proc = multiprocessing.Process(
                 target=self._worker_instance.protected_run, daemon=False
             )
+            #self._proc = multiprocessing.Process(
+            #    target=self.worker_spawner(),
+            #    daemon=False
+            #)
             self._proc.start()
         except Exception as e:
             import traceback
@@ -260,3 +274,7 @@ class ExecutionNode:
     @property
     def worker_class(self):
         return getattr(importlib.import_module(self.module), self.worker)
+        #spec = importlib.util.spec_from_file_location(self.module, config['framework']['worker_dir'] + '/' + self.module + '.py')
+        #module = importlib.util.module_from_spec(spec)
+        #spec.loader.exec_module(module)
+        #return getattr(module, self.worker)

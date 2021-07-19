@@ -70,7 +70,7 @@ class ListFileJobSpec(JobSpec):
                     name=details[6],
                     module=details[7],
                     worker=details[8],
-                    arguments=[
+                    argv=[
                         s.strip('"')
                         if s.strip().startswith('"') and s.strip().endswith('"')
                         else s.strip()
@@ -90,7 +90,7 @@ class ListFileJobSpec(JobSpec):
                     name=details[4],
                     module=details[5],
                     worker=details[6],
-                    arguments=[
+                    argv=[
                         s.strip('"')
                         if s.strip().startswith('"') and s.strip().endswith('"')
                         else s.strip()
@@ -120,7 +120,7 @@ class ListFileJobSpec(JobSpec):
                     node.name,
                     node.module,
                     node.worker,
-                    ",".join(node.arguments),
+                    ",".join(node.argv),
                     node.logfile,
                 ]
             )
@@ -134,7 +134,7 @@ class ListFileJobSpec(JobSpec):
                     node.name,
                     node.module,
                     node.worker,
-                    ",".join(node.arguments),
+                    ",".join(node.argv),
                     node.logfile,
                 ]
             )
@@ -154,7 +154,7 @@ class ListFileJobSpec(JobSpec):
             )
         else:
             body = "{}\n\n".format(constants.HEADER_PYTHON) + "\n".join(
-                [self.get_ctllog_line(node) for node in node_list]
+                [self.get_ctllog_line(node) for node, _ in node_list]
             )
 
         tmp = proc_file + ".tmp"

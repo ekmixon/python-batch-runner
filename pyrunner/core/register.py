@@ -236,16 +236,12 @@ class NodeRegister:
             node.logfile = kwargs.get("logfile")
         if kwargs.get("argv"):
             node.argv = kwargs.get("argv")
-        if kwargs.get("arguments"):
-            node.argv = kwargs.get("arguments")
-        if kwargs.get("retries"):
-            node.max_attempts = kwargs.get("retries")
         if kwargs.get("max_attempts"):
-            node.max_attempts = kwargs.get("max_attempts")
+            node.max_attempts = int(kwargs.get("max_attempts"))
         if kwargs.get("retry_wait_time"):
-            node.retry_wait_time = kwargs.get("retry_wait_time")
+            node.retry_wait_time = int(kwargs.get("retry_wait_time"))
         if kwargs.get("timeout"):
-            node.timeout = kwargs.get("timeout")
+            node.timeout = int(kwargs.get("timeout"))
         
         status = kwargs.get("status")
         if status not in [constants.STATUS_COMPLETED, constants.STATUS_NORUN]:

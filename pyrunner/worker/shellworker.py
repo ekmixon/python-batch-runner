@@ -15,7 +15,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 from pyrunner.worker.abstract import Worker
-from subprocess import run, Popen, PIPE, STDOUT
+from subprocess import Popen, PIPE, STDOUT
 
 
 class ShellWorker(Worker):

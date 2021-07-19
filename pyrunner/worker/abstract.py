@@ -14,7 +14,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
-import traceback, os
+import traceback, os, sys
 import multiprocessing.sharedctypes
 
 import pyrunner.logger.file as lg
@@ -75,7 +75,6 @@ class Worker(ABC):
         Initiate worker class run method and additionally trigger other lifecycle
         methods, if defined.
         """
-
         self.logger = lg.FileLogger(self.logfile).open()
         # Need lower level redirects to capture everything
         os.dup2(self.logger._file_descriptor, 1)

@@ -19,7 +19,6 @@ import sys
 import traceback
 
 import pyrunner.core.constants as constants
-import pyrunner.serde as serde
 from pyrunner.core.pyrunner import PyRunner
 
 

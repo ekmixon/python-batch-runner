@@ -43,11 +43,11 @@ if __name__ == '__main__':
     abs_dir_path = os.path.dirname(os.path.realpath(__file__))
     
     # Store path to default config and .lst file
-    config_file = '{{}}/config/app_profile'.format(abs_dir_path)
-    proc_file = '{{}}/config/{app_name}.lst'.format(abs_dir_path)
+    config_file = f'{{abs_dir_path}}/config/app.cfg'
+    job_spec = f'{{abs_dir_path}}/config/{app_name}.lst'
     
     # Init PyRunner and assign default config and .lst file
-    app = PyRunner(config_file=config_file, proc_file=proc_file)
+    app = PyRunner(config_file=config_file, job_spec=job_spec)
     
     # Initiate job and exit driver with return code
     sys.exit(app.execute())

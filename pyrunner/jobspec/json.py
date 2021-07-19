@@ -88,8 +88,8 @@ class JsonFileJobSpec(JobSpec):
             if node.max_attempts > 1:
                 obj["tasks"][node.name]["max_attempts"] = node.max_attempts
                 obj["tasks"][node.name]["retry_wait_time"] = node.retry_wait_time
-            if node.arguments:
-                obj["tasks"][node.name]["arguments"] = node.arguments
+            if node.argv:
+                obj["tasks"][node.name]["argv"] = node.argv
             if node.timeout != float("inf"):
                 obj["tasks"][node.name]["timeout"] = node.timeout
             if with_status:

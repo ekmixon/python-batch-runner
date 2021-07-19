@@ -15,19 +15,16 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os, sys
-import glob
-import shutil
-import zipfile
+import glob, shutil, zipfile
 import getopt
 
 import pyrunner.jobspec as jobspec
 import pyrunner.notification as notification
-import pyrunner.autodoc.introspection as intro
+#import pyrunner.autodoc.introspection as intro
 import pyrunner.core.constants as constants
 
 from pyrunner.core.config import config
 from pyrunner.core.context import create_new_context
-from pyrunner.core.engine import ExecutionEngine
 from pyrunner.core.register import NodeRegister
 from pyrunner.core.signal import SignalHandler, SIG_ABORT, SIG_REVIVE, SIG_PULSE
 from pyrunner.version import __version__
@@ -47,14 +44,15 @@ class PyRunner:
         self.sig_handler = SignalHandler()
         self.start_time = None
         self.restart = False
+        self._wait_until = 0
 
         # Lifecycle hooks
-        self._on_create_func = None
-        self._on_start_func = None
-        self._on_restart_func = None
-        self._on_success_func = None
-        self._on_fail_func = None
-        self._on_destroy_func = None
+        self._on_create_func = lambda *args: None
+        self._on_start_func = lambda *args: None
+        self._on_restart_func = lambda *args: None
+        self._on_success_func = lambda *args: None
+        self._on_fail_func = lambda *args: None
+        self._on_destroy_func = lambda *args: None
 
         # Signal switches
         self._revive = False
@@ -63,33 +61,17 @@ class PyRunner:
         # Parse cmd args
         self.parse_args(kwargs.get("parse_args", True))
 
-        if self._abort:
-            print(
-                f"Submitting ABORT signal to running job for: {config.get('framework', 'app_name')}"
-            )
-            self.signal_handler.emit(SIG_ABORT)
-            sys.exit(0)
-
-        if self._revive:
-            print(
-                f"Submitting REVIVE signal to running job for: {config.get('framework', 'app_name')}"
-            )
-            self.signal_handler.emit(SIG_REVIVE)
-            sys.exit(0)
-
         if "config_file" in kwargs:
             config.load_cfg(kwargs["config_file"])
-        
-        if "proc_file" in kwargs:
-            self.load_proc_file(kwargs["proc_file"])
 
-        if self.dup_proc_is_running():
-            raise OSError(
-                f'Another process for "{config["framework"]["app_name"]}" is already running!'
-            )
-        else:
-            # Clear signals, if any, to ensure clean start.
-            self.signal_handler.consume_all()
+        ctllog_file = f"{config.get('framework', 'temp_dir')}/{config.get('framework', 'app_name')}.ctllog"
+        ctx_file = f"{config.get('framework', 'temp_dir')}/{config.get('framework', 'app_name')}.ctx"
+        if self.restart and os.path.isfile(ctllog_file):
+            self.jobspec.load(ctllog_file)
+            self.context.load_from_file(ctx_file)
+        elif "job_spec" in kwargs:
+            self.restart = False # In case we're starting new run despite -r flag
+            self.register = self.jobspec.load(kwargs["job_spec"])
 
     def dup_proc_is_running(self):
         self.signal_handler.emit(SIG_PULSE)
@@ -153,14 +135,31 @@ class PyRunner:
     def exec_disable(self, id_list):
         return self.register.exec_disable(id_list)
 
-    def prepare(self):
-        # Initialize NodeRegister
-        if config["restart"]:
-            self.load_state()
-        elif config["proc_file"]:
-            #self.load_proc_file(config["proc_file"])
-            self.jobspec.load(config["proc_file"])
+    def process_signals(self):
+        if self._abort:
+            print(
+                f"Submitting ABORT signal to running job for: {config.get('framework', 'app_name')}"
+            )
+            self.signal_handler.emit(SIG_ABORT)
+            sys.exit(0)
 
+        if self._revive:
+            print(
+                f"Submitting REVIVE signal to running job for: {config.get('framework', 'app_name')}"
+            )
+            self.signal_handler.emit(SIG_REVIVE)
+            sys.exit(0)
+        
+        if self.dup_proc_is_running():
+            raise OSError(
+                f'Another process for "{config.get("framework", "app_name")}" is already running!'
+            )
+        
+        # Clear signals, if any, to ensure clean start.
+        self.signal_handler.consume_all()
+
+
+    def prepare(self):
         # Modify NodeRegister
         """
         if config["exec_proc_name"]:
@@ -175,46 +174,15 @@ class PyRunner:
             self.exec_to(config["exec_to_id"])
         """
 
-    def execute(self):
-        #self.prepare()
-
-        # Prepare engine
-        #self.engine.register = self.register
-
-        ## Short circuit for a dryrun
-        #if config["dryrun"]:
-        #    self.print_documentation()
-        #    return 0
-
-        # Fire up engine
-        print(f"Executing PyRunner App: {config.get('framework', 'app_name')}")
-        retcode = self.initiate()
-
-        should_notify = True
-        if retcode == 0 and not config["notify_on_success"]:
-            print(
-                'Skipping Notification: Property "notify_on_success" is set to FALSE.'
-            )
-            should_notify = False
-        elif retcode > 0 and not config["notify_on_fail"]:
-            print('Skipping Notification: Property "notify_on_fail" is set to FALSE.')
-            should_notify = False
-
-        if should_notify:
-            self.notification.emit_notification(config, self.register)
-
-        if not config["nozip"]:
-            self.zip_log_files(retcode)
-
-        self.cleanup_log_files()
-
-        if retcode == 0:
-            self.delete_state()
-
-        return retcode
-
-    def initiate(self, **kwargs):
+    def execute(self, **kwargs):
         """Begins the execution loop."""
+        print(f"Executing PyRunner App: {config.get('framework', 'app_name')}")
+        sys.path.append(config.get("framework", "worker_dir"))
+
+        os.makedirs(config.get("framework", "temp_dir"), exist_ok=True)
+        os.makedirs(config.get("framework", "log_dir"), exist_ok=True)
+
+        self.process_signals()
         self.start_time = time.time()
         wait_interval = (
             1.0 / config.getint("launch_params", "tickrate")
@@ -223,18 +191,11 @@ class PyRunner:
         )
         last_save = 0
 
-        # App lifecycle - RESTART
-        if config.getboolean("launch_params", "restart"):
-            if self._on_restart_func:
-                self._on_restart_func()
-        # App lifecycle - CREATE
-        else:
-            if self._on_create_func:
-                self._on_create_func()
+        # App lifecycle - RESTART or CREATE
+        self._on_restart_func() if self.restart else self._on_create_func()
 
         # App lifecycle - START
-        if self._on_start_func:
-            self._on_start_func()
+        self._on_start_func()
 
         # Execution loop
         try:
@@ -273,9 +234,10 @@ class PyRunner:
 
                 # Check pending nodes for eligibility to execute
                 for node in self.register.pending_nodes.copy():
-                    if config.getint("launch_params", "max_procs") > 0 and len(
-                        self.register.running_nodes
-                    ) >= config.getint("launch_params", "max_procs"):
+                    if (
+                        config.getint("launch_params", "max_procs") > 0
+                        and len(self.register.running_nodes) >= config.getint("launch_params", "max_procs")
+                    ):
                         break
 
                     if not time.time() >= self._wait_until:
@@ -308,7 +270,7 @@ class PyRunner:
                 if (
                     not config.getboolean("launch_params", "test_mode")
                     and self.save_state
-                    and (time.time() - last_save) >= config["save_interval"]
+                    and (time.time() - last_save) >= config.getint("launch_params", "save_interval")
                 ):
                     self.save_state(True)
                     last_save = time.time()
@@ -327,15 +289,13 @@ class PyRunner:
 
         # App lifecycle - SUCCESS
         if len(self.register.failed_nodes) == 0:
-            if self._on_success_func:
-                self._on_success_func()
+            self._on_success_func()
         # App lifecycle - FAIL (<0 is for ABORT or other interrupt)
-        elif len(self.register.failed_nodes) > 0 and self._on_fail_func:
+        elif len(self.register.failed_nodes) > 0:
             self._on_fail_func()
 
         # App lifecycle - DESTROY
-        if self._on_destroy_func:
-            self._on_destroy_func()
+        self._on_destroy_func()
 
         if config.getboolean("launch_params", "dump_logs") or (
             not kwargs.get("silent")
@@ -349,7 +309,30 @@ class PyRunner:
         ):
             self.save_state()
 
-        return len(self.register.failed_nodes)
+        retcode = len(self.register.failed_nodes)
+
+        should_notify = True
+        if retcode == 0 and not config["launch_params"]["notify_on_success"]:
+            print(
+                'Skipping Notification: Property "notify_on_success" is set to FALSE.'
+            )
+            should_notify = False
+        elif retcode > 0 and not config["launch_params"]["notify_on_fail"]:
+            print('Skipping Notification: Property "notify_on_fail" is set to FALSE.')
+            should_notify = False
+
+        if should_notify:
+            self.notification.emit_notification(config, self.register)
+
+        if not config["launch_params"]["nozip"]:
+            self.zip_log_files(retcode)
+
+        self.cleanup_log_files()
+
+        if retcode == 0:
+            self.delete_state()
+
+        return retcode
 
     def _abort_all_workers(self):
         for node in self.register.running_nodes.copy():
@@ -427,7 +410,7 @@ class PyRunner:
         print("# Name: {}".format(n.name))
         print("# Module: {}".format(n.module))
         print("# Worker: {}".format(n.worker))
-        print("# Arguments: {}".format(n.arguments))
+        print("# Arguments: {}".format(n.argv))
         print("# Log File: {}".format(n.logfile))
 
         if dump_logs:
@@ -442,30 +425,32 @@ class PyRunner:
             return
 
         ctllog_file = "{}/{}.ctllog".format(
-            config.get("framework", "temp_dir"), config.get("framework", "app_name")
+            config.get("framework", "temp_dir"),
+            config.get("framework", "app_name")
         )
         if not suppress_output:
             print("Saving Execution Graph File to: {}".format(ctllog_file))
         self.jobspec.dump(ctllog_file, self.register)
 
         ctx_file = "{}/{}.ctx".format(
-            config.get("framework", "temp_dir"), config.get("framework", "app_name")
+            config.get("framework", "temp_dir"),
+            config.get("framework", "app_name")
         )
         if not suppress_output:
             print("Saving Context Object to File: {}".format(ctx_file))
         self.context.save_to_file(ctx_file)
 
     def cleanup_log_files(self):
-        if config["log_retention"] < 0:
+        if config.getint("framework", "log_retention") < 0:
             return
 
         try:
-            files = glob.glob("{}/*".format(config["root_log_dir"]))
+            files = glob.glob("{}/*".format(config.get("framework", "log_root_dir")))
             to_delete = [
                 f
                 for f in files
                 if os.stat(f).st_mtime
-                < (time.time() - (config["log_retention"] * 86400.0))
+                < (time.time() - (config.getint("framework", "log_retention") * 86400.0))
             ]
 
             if to_delete:
@@ -496,8 +481,8 @@ class PyRunner:
                 suffix = "SUCCESS"
 
             zip_file = "{}/{}_{}_{}.zip".format(
-                config["log_dir"],
-                config["app_name"],
+                config.get("framework", "log_dir"),
+                config.get("framework", "app_name"),
                 constants.EXECUTION_TIMESTAMP,
                 suffix,
             )
@@ -597,7 +582,7 @@ class PyRunner:
                 elif opt in ["-n", "--max-procs"]:
                     config['launch_params']["max_procs"] = int(arg)
                 elif opt in ["-r", "--restart"]:
-                    config['launch_params']["restart"] = True
+                    self.restart = True
                 elif opt in ["-x", "--exec-only"]:
                     config['launch_params']["exec_only_list"] = [int(id) for id in arg.split(",")]
                 elif opt in ["-N", "--norun"]:
