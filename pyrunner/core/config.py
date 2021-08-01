@@ -25,6 +25,9 @@ def get_config_instance():
         __config = Config()
     return __config
 
+def create_new_config():
+    return Config()
+
 class Config(configparser.ConfigParser):
     def __init__(self, *args, **kwargs):
         if "interpolation" not in kwargs:

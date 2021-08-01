@@ -24,7 +24,7 @@ import pyrunner.notification as notification
 import pyrunner.core.constants as constants
 
 from pyrunner.core.config import config
-from pyrunner.core.context import create_new_context
+from pyrunner.core.context import create_new_context, get_context_instance
 from pyrunner.core.register import NodeRegister
 from pyrunner.core.signal import SignalHandler, SIG_ABORT, SIG_REVIVE, SIG_PULSE
 from pyrunner.version import __version__
@@ -36,7 +36,7 @@ import time
 
 class PyRunner:
     def __init__(self, **kwargs):
-        self.context = create_new_context()
+        self.context = get_context_instance()
         self.notification = notification.EmailNotification()
         self.signal_handler = SignalHandler()
         self.register = NodeRegister()
@@ -269,7 +269,6 @@ class PyRunner:
                 # Persist state to disk at set intervals
                 if (
                     not config.getboolean("launch_params", "test_mode")
-                    and self.save_state
                     and (time.time() - last_save) >= config.getint("launch_params", "save_interval")
                 ):
                     self.save_state(True)
@@ -303,10 +302,7 @@ class PyRunner:
         ):
             self._print_final_state()
 
-        if (
-            not config.getboolean("launch_params", "test_mode")
-            and self.save_state
-        ):
+        if (not config.getboolean("launch_params", "test_mode")):
             self.save_state()
 
         retcode = len(self.register.failed_nodes)

@@ -140,10 +140,6 @@ class ExecutionNode:
             self._proc = multiprocessing.Process(
                 target=self._worker_instance.protected_run, daemon=False
             )
-            #self._proc = multiprocessing.Process(
-            #    target=self.worker_spawner(),
-            #    daemon=False
-            #)
             self._proc.start()
         except Exception as e:
             import traceback
