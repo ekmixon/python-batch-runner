@@ -29,15 +29,16 @@ class SignalHandler:
     self.config = config
   
   def sig_file(self, sig):
-    return '{}/.{}.{}'.format(self.config['temp_dir'], self.config['app_name'], sig)
+    return f"{self.config['temp_dir']}/.{self.config['app_name']}.{sig}"
   
   def emit(self, sig):
-    if sig not in _valid_signals: raise ValueError('Unknown signal type: {}'.format(sig))
+    if sig not in _valid_signals:
+      raise ValueError(f'Unknown signal type: {sig}')
     open(self.sig_file(sig), 'a').close()
   
   def consume(self, sig):
     if sig not in _valid_signals:
-      raise ValueError('Unknown signal type: {}'.format(sig))
+      raise ValueError(f'Unknown signal type: {sig}')
     if sig in self.peek():
       os.remove(self.sig_file(sig))
       return True
@@ -51,4 +52,4 @@ class SignalHandler:
     return sig_set
   
   def peek(self):
-    return set([ s for s in _valid_signals if os.path.exists(self.sig_file(s)) ])
+    return {s for s in _valid_signals if os.path.exists(self.sig_file(s))}

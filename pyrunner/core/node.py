@@ -33,32 +33,32 @@ class ExecutionNode:
       raise ValueError('id must be -1 or greater')
     if name:
       self.name = name
-    
+
     self._id = int(id)
-    
+
     # Num attempts/restart management
     self._attempts = 0
     self._max_attempts = 1
     self._retry_wait_time = 0
     self._wait_until = 0
-    
+
     self._start_time = 0
     self._end_time = 0
     self._timeout = float('inf')
     self._proc = None
     self._context = None
-    
+
     # Service execution mode properties
     self._as_service = False
     self._exec_interval = 1
-    
+
     self._module = None
     self._worker = None
     self._worker_instance = None
-    
+
     self._parent_nodes = set()
     self._child_nodes = set()
-    
+
     return
   
   def __hash__(self):
@@ -90,17 +90,19 @@ class ExecutionNode:
     # Return early if retry triggered and wait time has not yet fully elapsed
     if not self.is_runnable():
       return
-    
+
     self._attempts += 1
-    
+
     if not self._start_time:
       self._start_time = time.time()
-    
+
     try:
       # Check if provided worker actually extends the Worker class.
       if not issubclass(self.worker_class, Worker):
-        raise TypeError('{}.{} is not an extension of pyrunner.Worker'.format(self.module, self.worker))
-      
+        raise TypeError(
+            f'{self.module}.{self.worker} is not an extension of pyrunner.Worker'
+        )
+
       # Launch the "run" method of the provided Worker under a new process.
       self._worker_instance = self.worker_class(self.context, self.logfile, self.argv, self.as_service)
       self._proc = multiprocessing.Process(target=self._worker_instance.protected_run, daemon=False)
@@ -110,7 +112,7 @@ class ExecutionNode:
       logger.open()
       logger.error(str(e))
       logger.close()
-    
+
     return
   
   def poll(self, wait=False):
@@ -127,10 +129,10 @@ class ExecutionNode:
     """
     if not self._proc:
       return 905
-    
+
     running = self._proc.is_alive()
     retcode = 0
-    
+
     if not running or wait:
       # Note that if wait is True, then the join() method is invoked immediately,
       # causing the thread to block until it's job is complete.
@@ -141,14 +143,19 @@ class ExecutionNode:
         logger = lg.FileLogger(self.logfile)
         logger.open(False)
         self._wait_until = time.time() + self._retry_wait_time
-        logger.restart_message(self._attempts, 'Waiting {} seconds before retrying...'.format(self._retry_wait_time))
+        logger.restart_message(
+            self._attempts,
+            f'Waiting {self._retry_wait_time} seconds before retrying...',
+        )
         logger.close(False)
         retcode = -1
       self.cleanup()
     elif (time.time() - self._start_time) >= self._timeout:
-      retcode = self.terminate('Worker runtime has exceeded the set maximum/timeout of {} seconds.'.format(self._timeout))
+      retcode = self.terminate(
+          f'Worker runtime has exceeded the set maximum/timeout of {self._timeout} seconds.'
+      )
       running = False
-    
+
     return retcode if (not running or wait) else None
   
   def terminate(self, message='Terminating process'):
@@ -179,8 +186,7 @@ class ExecutionNode:
       return None
     else:
       for n in self._child_nodes:
-        temp = n.get_node_by_id(id)
-        if temp:
+        if temp := n.get_node_by_id(id):
           return temp
     return None
   
@@ -191,8 +197,7 @@ class ExecutionNode:
       return None
     else:
       for n in self._child_nodes:
-        temp = n.get_node_by_name(name)
-        if temp:
+        if temp := n.get_node_by_name(name):
           return temp
     return None
   
@@ -201,7 +206,8 @@ class ExecutionNode:
     return
   
   def add_child_node(self, child, parent_id_list, named_deps=False):
-    if (named_deps and self._name in [ x for x in parent_id_list ]) or (not named_deps and self._id in [ int(x) for x in parent_id_list ]):
+    if (named_deps and self._name in list(parent_id_list)
+        or (not named_deps and self._id in [int(x) for x in parent_id_list])):
       child.add_parent_node(self)
       self._child_nodes.add(child)
     for c in self._child_nodes:
@@ -209,14 +215,14 @@ class ExecutionNode:
     return
   
   def pretty_print(self, indent=''):
-    print('{}{} - {}'.format(indent, self._id, self._name))
+    print(f'{indent}{self._id} - {self._name}')
     for c in self._child_nodes:
-      c.pretty_print('{}  '.format(indent))
+      c.pretty_print(f'{indent}  ')
     return
   
   def get_elapsed_time(self):
-    end_time = self._end_time if self._end_time else time.time()
-    
+    end_time = self._end_time or time.time()
+
     if self._start_time and end_time and end_time > self._start_time:
       elapsed_time = end_time - self._start_time
       return time.strftime("%H:%M:%S", time.gmtime(elapsed_time))
@@ -234,7 +240,7 @@ class ExecutionNode:
     except:
       raise ValueError('Provided value is not castable to string')
     if not value or not str(value).strip():
-      raise ValueError('{} cannot be None, blank, or only spaces'.format(name))
+      raise ValueError(f'{name} cannot be None, blank, or only spaces')
   
   @property
   def id(self):

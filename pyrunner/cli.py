@@ -25,7 +25,7 @@ from pyrunner.core.pyrunner import PyRunner
 
 def main():
   exit_status = 0
-  
+
   if '--setup' in sys.argv:
     setup()
   else:
@@ -34,39 +34,39 @@ def main():
       exit_status = app.execute()
     except ValueError as value_error:
       exit_status = 2
-      print(str(value_error))
+      print(value_error)
       print(traceback.format_exc())
-      print('Exiting with code {}'.format(exit_status))
-    
+      print(f'Exiting with code {exit_status}')
+
     except LookupError as file_error:
       exit_status = 3
-      print(str(file_error))
+      print(file_error)
       print(traceback.format_exc())
-      print('Exiting with code {}'.format(exit_status))
-    
+      print(f'Exiting with code {exit_status}')
+
     except KeyboardInterrupt:
       exit_status = 4
       print('\nAborting')
-    
+
     except RuntimeError as runtime_error:
       exit_status = 5
-      print(str(runtime_error))
+      print(runtime_error)
       print(traceback.format_exc())
-      print('Exiting with code {}'.format(exit_status))
-    
+      print(f'Exiting with code {exit_status}')
+
     except OSError as os_error:
       exit_status = 6
-      print(str(os_error))
+      print(os_error)
       print(traceback.format_exc())
-      print('Exiting with code {}'.format(exit_status))
-    
+      print(f'Exiting with code {exit_status}')
+
     except Exception as generic_error:
       exit_status = 99
       print('Unknown Exception')
-      print(str(generic_error))
+      print(generic_error)
       print(traceback.format_exc())
-      print('Exiting with code {}'.format(exit_status))
-  
+      print(f'Exiting with code {exit_status}')
+
   sys.exit(exit_status)
 
 # ########################## SETUP ########################## #
@@ -75,48 +75,48 @@ def setup():
   print('\nINITIATING NEW PROJECT SETUP\n')
   app_name = input('Project Name (spaces will be removed): ')
   app_name = app_name.replace(' ', '_').lower()
-  
+
   if not app_name.strip():
     raise ValueError('Please provide project name')
-  
+
   app_path = input('Directory to Add Project (Leave Blank for Current Directory): ')
-  
+
   if not app_path.strip():
     app_path = os.getcwd()
   elif not os.path.exists(app_path):
-    raise OSError('Provided directory does not exist: {}'.format(app_path))
+    raise OSError(f'Provided directory does not exist: {app_path}')
   elif len(app_path) > 1 and app_path[-1] == '/':
     app_path = app_path[:-1]
-  
-  app_root = '{}/{}'.format(app_path, app_name)
-  
+
+  app_root = f'{app_path}/{app_name}'
+
   if os.path.isdir(app_root) or os.path.exists(app_root):
-    raise OSError('{} already exists!'.format(app_root))
-  
+    raise OSError(f'{app_root} already exists!')
+
   print('\nSUMMARY:\n')
-  print('Project Name: {}'.format(app_name))
-  print('Project Path: {}/{}'.format(app_path, app_name))
-  
+  print(f'Project Name: {app_name}')
+  print(f'Project Path: {app_path}/{app_name}')
+
   input('\nPress ENTER if this is correct or Ctrl + C to Abort...\n')
-  
+
   print('Proceeding with Project Setup\n')
-  
-  print('Creating Directory: {}'.format(app_root))
-  print('Creating Directory: {}/config'.format(app_root))
-  print('Creating Directory: {}/workers'.format(app_root))
-  
+
+  print(f'Creating Directory: {app_root}')
+  print(f'Creating Directory: {app_root}/config')
+  print(f'Creating Directory: {app_root}/workers')
+
   os.makedirs(app_root)
-  os.makedirs('{}/config'.format(app_root))
-  os.makedirs('{}/workers'.format(app_root))
-  
-  print('Creating Application Profile: {}/config/app_profile'.format(app_root))
-  with open('{}/config/app_profile'.format(app_root), 'w') as app_profile:
+  os.makedirs(f'{app_root}/config')
+  os.makedirs(f'{app_root}/workers')
+
+  print(f'Creating Application Profile: {app_root}/config/app_profile')
+  with open(f'{app_root}/config/app_profile', 'w') as app_profile:
     app_profile.write('#!/bin/bash\n\n')
     app_profile.write('# This app_profile will be sourced prior to execution of PyRunner job.\n')
     app_profile.write('# NOTE: Only variables with "APP_" prefix will be available during job.\n')
     app_profile.write('#       All other variables will be discarded.\n\n')
     app_profile.write('export APP_VERSION=0.0.1\n\n')
-    app_profile.write('export APP_NAME="{}"\n'.format(app_name))
+    app_profile.write(f'export APP_NAME="{app_name}"\n')
     app_profile.write('export APP_ROOT_DIR="$(cd $(dirname ${BASH_SOURCE})/..; pwd)"\n')
     app_profile.write('export APP_CONFIG_DIR="${APP_ROOT_DIR}/config"\n')
     app_profile.write('export APP_TEMP_DIR="${APP_ROOT_DIR}/temp"\n')
@@ -128,17 +128,17 @@ def setup():
     app_profile.write('export APP_LOG_DIR="${APP_ROOT_LOG_DIR}/${DATE}"\n\n')
     app_profile.write('if [ ! -e ${APP_LOG_DIR}  ]; then mkdir -p ${APP_LOG_DIR}; fi\n')
     app_profile.write('if [ ! -e ${APP_TEMP_DIR} ]; then mkdir -p ${APP_TEMP_DIR}; fi\n')
-  
-  print('Creating Blank Process List File: {}/config/{}.lst'.format(app_root, app_name))
-  with open('{}/config/{}.lst'.format(app_root, app_name), 'w') as lst_file:
-    lst_file.write('{}\n\n'.format(constants.HEADER_PYTHON))
-  
-  print('Creating Driver Program: {}/{}.py'.format(app_root, app_name))
-  with open('{}/{}.py'.format(app_root, app_name), 'w') as main_file:
+
+  print(f'Creating Blank Process List File: {app_root}/config/{app_name}.lst')
+  with open(f'{app_root}/config/{app_name}.lst', 'w') as lst_file:
+    lst_file.write(f'{constants.HEADER_PYTHON}\n\n')
+
+  print(f'Creating Driver Program: {app_root}/{app_name}.py')
+  with open(f'{app_root}/{app_name}.py', 'w') as main_file:
     main_file.write(constants.DRIVER_TEMPLATE.format(app_name=app_name))
-  
-  os.chmod('{}/{}.py'.format(app_root, app_name), 0o744)
-  
+
+  os.chmod(f'{app_root}/{app_name}.py', 0o744)
+
   print('\nComplete!\n')
-  
+
   return

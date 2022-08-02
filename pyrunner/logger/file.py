@@ -35,18 +35,18 @@ class FileLogger(Logger):
         self.logfile_handle = open(self.filename, "a")
         if open_message:
           self.logfile_handle.write("############################################################################\n")
-          self.logfile_handle.write("# LOG START - {}\n".format(datetime.now()))
+          self.logfile_handle.write(f"# LOG START - {datetime.now()}\n")
           self.logfile_handle.write("############################################################################\n\n")
           self.logfile_handle.flush()
       except Exception as e:
-        print(str(e))
+        print(e)
     return self
   
   def _emit_(self, level, text):
     """
     Write log message with given level.
     """
-    self.logfile_handle.write("{} - {} - {}\n".format(level.upper(), datetime.now(), text))
+    self.logfile_handle.write(f"{level.upper()} - {datetime.now()} - {text}\n")
     self.logfile_handle.flush()
     return
   
@@ -55,9 +55,10 @@ class FileLogger(Logger):
     Write a RESTART attempt indication message.
     """
     self.logfile_handle.write("\n############################################################################\n")
-    self.logfile_handle.write("# RESTART ATTEMPT {} - {}\n".format(restart_count, datetime.now()))
+    self.logfile_handle.write(
+        f"# RESTART ATTEMPT {restart_count} - {datetime.now()}\n")
     if extra_text:
-      self.logfile_handle.write("# {}\n".format(extra_text))
+      self.logfile_handle.write(f"# {extra_text}\n")
     self.logfile_handle.write("############################################################################\n\n")
     self.logfile_handle.flush()
     return
@@ -69,7 +70,7 @@ class FileLogger(Logger):
     if self.logfile_handle:
       if close_message:
         self.logfile_handle.write("\n############################################################################\n")
-        self.logfile_handle.write("# LOG END - {}\n".format(datetime.now()))
+        self.logfile_handle.write(f"# LOG END - {datetime.now()}\n")
         self.logfile_handle.write("############################################################################\n\n")
       self.logfile_handle.close()
     return
@@ -90,7 +91,7 @@ class FileLogger(Logger):
     Returns:
       is_open (bool): True if open/writable, otherwise False.
     """
-    return True if self.logfile_handle else False
+    return bool(self.logfile_handle)
   
   def dump_log(self):
     """

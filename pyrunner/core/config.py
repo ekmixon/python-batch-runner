@@ -69,45 +69,258 @@ class Config:
   
   def __init__(self):
     self._attr = {
-      # Initialization params only
-      'config_file'      : { 'type': str , 'preserve': False, 'env': None, 'value': None, 'default': None },
-      'proc_file'        : { 'type': str , 'preserve': False, 'env': None, 'value': None, 'default': None },
-      'restart'          : { 'type': bool, 'preserve': False, 'env': None, 'value': None, 'default': False },
-      'cvar_list'        : { 'type': list, 'preserve': False, 'env': None, 'value': []  , 'default': [] },
-      'exec_proc_name'   : { 'type': str , 'preserve': False, 'env': None, 'value': None, 'default': None },
-      'exec_only_list'   : { 'type': list, 'preserve': False, 'env': None, 'value': []  , 'default': [] },
-      'exec_disable_list': { 'type': list, 'preserve': False, 'env': None, 'value': []  , 'default': [] },
-      'exec_from_id'     : { 'type': int , 'preserve': False, 'env': None, 'value': None, 'default': None },
-      'exec_to_id'       : { 'type': int , 'preserve': False, 'env': None, 'value': None, 'default': None },
-      
-      # Preservable runtime params
-      'app_version'          : { 'type': str , 'preserve': True,  'env': 'APP_VERSION'              , 'value': None, 'default': '0.0.0' },
-      'app_name'             : { 'type': str , 'preserve': True,  'env': 'APP_NAME'                 , 'value': None, 'default': "PyrunnerApp_{}".format(uuid.uuid4()) },
-      'app_start_time'       : { 'type': str , 'preserve': True,  'env': None                       , 'value': None, 'default': None },
-      'app_root_dir'         : { 'type': str , 'preserve': True,  'env': 'APP_ROOT_DIR'             , 'value': None, 'default': None },
-      'config_dir'           : { 'type': str , 'preserve': True,  'env': 'APP_CONFIG_DIR'           , 'value': None, 'default': None },
-      'temp_dir'             : { 'type': str , 'preserve': True,  'env': 'APP_TEMP_DIR'             , 'value': None, 'default': None },
-      'log_dir'              : { 'type': str , 'preserve': True,  'env': 'APP_LOG_DIR'              , 'value': None, 'default': None },
-      'root_log_dir'         : { 'type': str , 'preserve': True,  'env': 'APP_ROOT_LOG_DIR'         , 'value': None, 'default': None },
-      'worker_dir'           : { 'type': str , 'preserve': True,  'env': 'APP_WORKER_DIR'           , 'value': None, 'default': None },
-      'nozip'                : { 'type': bool, 'preserve': False, 'env': 'APP_NOZIP'                , 'value': None, 'default': False },
-      'dump_logs'            : { 'type': bool, 'preserve': False, 'env': 'APP_DUMP_LOGS'            , 'value': None, 'default': False },
-      'email'                : { 'type': str , 'preserve': False, 'env': 'APP_EMAIL'                , 'value': None, 'default': None },
-      'silent'               : { 'type': bool, 'preserve': False, 'env': 'APP_SILENT'               , 'value': None, 'default': False },
-      'debug'                : { 'type': bool, 'preserve': False, 'env': 'APP_DEBUG'                , 'value': None, 'default': False },
-      'tickrate'             : { 'type': int , 'preserve': False, 'env': 'APP_TICKRATE'             , 'value': None, 'default': 1 },
-      'time_between_tasks'   : { 'type': int , 'preserve': True,  'env': 'APP_TIME_BETWEEN_TASKS'   , 'value': None, 'default': 0 },
-      'save_interval'        : { 'type': int , 'preserve': False, 'env': 'APP_SAVE_INTERVAL'        , 'value': None, 'default': 10 },
-      'max_procs'            : { 'type': int , 'preserve': False, 'env': 'APP_MAX_PROCS'            , 'value': None, 'default': -1 },
-      'log_retention'        : { 'type': int , 'preserve': True,  'env': 'APP_LOG_RETENTION'        , 'value': None, 'default': 30 },
-      'dryrun'               : { 'type': bool, 'preserve': False, 'env': 'APP_DRYRUN'               , 'value': None, 'default': False },
-      'email_on_fail'        : { 'type': bool, 'preserve': False, 'env': 'APP_EMAIL_ON_FAIL'        , 'value': None, 'default': True },
-      'email_on_success'     : { 'type': bool, 'preserve': False, 'env': 'APP_EMAIL_ON_SUCCESS'     , 'value': None, 'default': True },
-      'notify_on_fail'       : { 'type': bool, 'preserve': False, 'env': 'APP_NOTIFY_ON_FAIL'       , 'value': None, 'default': True },
-      'notify_on_success'    : { 'type': bool, 'preserve': False, 'env': 'APP_NOTIFY_ON_SUCCESS'    , 'value': None, 'default': True },
-      'as_service'           : { 'type': bool, 'preserve': True,  'env': 'APP_AS_SERVICE'           , 'value': None, 'default': False },
-      'service_exec_interval': { 'type': int , 'preserve': False, 'env': 'APP_SERVICE_EXEC_INTERVAL', 'value': None, 'default': 1 },
-      'test_mode'            : { 'type': bool, 'preserve': True,  'env': 'APP_TEST_MODE'            , 'value': None, 'default': False }
+        'config_file': {
+            'type': str,
+            'preserve': False,
+            'env': None,
+            'value': None,
+            'default': None,
+        },
+        'proc_file': {
+            'type': str,
+            'preserve': False,
+            'env': None,
+            'value': None,
+            'default': None,
+        },
+        'restart': {
+            'type': bool,
+            'preserve': False,
+            'env': None,
+            'value': None,
+            'default': False,
+        },
+        'cvar_list': {
+            'type': list,
+            'preserve': False,
+            'env': None,
+            'value': [],
+            'default': [],
+        },
+        'exec_proc_name': {
+            'type': str,
+            'preserve': False,
+            'env': None,
+            'value': None,
+            'default': None,
+        },
+        'exec_only_list': {
+            'type': list,
+            'preserve': False,
+            'env': None,
+            'value': [],
+            'default': [],
+        },
+        'exec_disable_list': {
+            'type': list,
+            'preserve': False,
+            'env': None,
+            'value': [],
+            'default': [],
+        },
+        'exec_from_id': {
+            'type': int,
+            'preserve': False,
+            'env': None,
+            'value': None,
+            'default': None,
+        },
+        'exec_to_id': {
+            'type': int,
+            'preserve': False,
+            'env': None,
+            'value': None,
+            'default': None,
+        },
+        'app_version': {
+            'type': str,
+            'preserve': True,
+            'env': 'APP_VERSION',
+            'value': None,
+            'default': '0.0.0',
+        },
+        'app_name': {
+            'type': str,
+            'preserve': True,
+            'env': 'APP_NAME',
+            'value': None,
+            'default': f"PyrunnerApp_{uuid.uuid4()}",
+        },
+        'app_start_time': {
+            'type': str,
+            'preserve': True,
+            'env': None,
+            'value': None,
+            'default': None,
+        },
+        'app_root_dir': {
+            'type': str,
+            'preserve': True,
+            'env': 'APP_ROOT_DIR',
+            'value': None,
+            'default': None,
+        },
+        'config_dir': {
+            'type': str,
+            'preserve': True,
+            'env': 'APP_CONFIG_DIR',
+            'value': None,
+            'default': None,
+        },
+        'temp_dir': {
+            'type': str,
+            'preserve': True,
+            'env': 'APP_TEMP_DIR',
+            'value': None,
+            'default': None,
+        },
+        'log_dir': {
+            'type': str,
+            'preserve': True,
+            'env': 'APP_LOG_DIR',
+            'value': None,
+            'default': None,
+        },
+        'root_log_dir': {
+            'type': str,
+            'preserve': True,
+            'env': 'APP_ROOT_LOG_DIR',
+            'value': None,
+            'default': None,
+        },
+        'worker_dir': {
+            'type': str,
+            'preserve': True,
+            'env': 'APP_WORKER_DIR',
+            'value': None,
+            'default': None,
+        },
+        'nozip': {
+            'type': bool,
+            'preserve': False,
+            'env': 'APP_NOZIP',
+            'value': None,
+            'default': False,
+        },
+        'dump_logs': {
+            'type': bool,
+            'preserve': False,
+            'env': 'APP_DUMP_LOGS',
+            'value': None,
+            'default': False,
+        },
+        'email': {
+            'type': str,
+            'preserve': False,
+            'env': 'APP_EMAIL',
+            'value': None,
+            'default': None,
+        },
+        'silent': {
+            'type': bool,
+            'preserve': False,
+            'env': 'APP_SILENT',
+            'value': None,
+            'default': False,
+        },
+        'debug': {
+            'type': bool,
+            'preserve': False,
+            'env': 'APP_DEBUG',
+            'value': None,
+            'default': False,
+        },
+        'tickrate': {
+            'type': int,
+            'preserve': False,
+            'env': 'APP_TICKRATE',
+            'value': None,
+            'default': 1,
+        },
+        'time_between_tasks': {
+            'type': int,
+            'preserve': True,
+            'env': 'APP_TIME_BETWEEN_TASKS',
+            'value': None,
+            'default': 0,
+        },
+        'save_interval': {
+            'type': int,
+            'preserve': False,
+            'env': 'APP_SAVE_INTERVAL',
+            'value': None,
+            'default': 10,
+        },
+        'max_procs': {
+            'type': int,
+            'preserve': False,
+            'env': 'APP_MAX_PROCS',
+            'value': None,
+            'default': -1,
+        },
+        'log_retention': {
+            'type': int,
+            'preserve': True,
+            'env': 'APP_LOG_RETENTION',
+            'value': None,
+            'default': 30,
+        },
+        'dryrun': {
+            'type': bool,
+            'preserve': False,
+            'env': 'APP_DRYRUN',
+            'value': None,
+            'default': False,
+        },
+        'email_on_fail': {
+            'type': bool,
+            'preserve': False,
+            'env': 'APP_EMAIL_ON_FAIL',
+            'value': None,
+            'default': True,
+        },
+        'email_on_success': {
+            'type': bool,
+            'preserve': False,
+            'env': 'APP_EMAIL_ON_SUCCESS',
+            'value': None,
+            'default': True,
+        },
+        'notify_on_fail': {
+            'type': bool,
+            'preserve': False,
+            'env': 'APP_NOTIFY_ON_FAIL',
+            'value': None,
+            'default': True,
+        },
+        'notify_on_success': {
+            'type': bool,
+            'preserve': False,
+            'env': 'APP_NOTIFY_ON_SUCCESS',
+            'value': None,
+            'default': True,
+        },
+        'as_service': {
+            'type': bool,
+            'preserve': True,
+            'env': 'APP_AS_SERVICE',
+            'value': None,
+            'default': False,
+        },
+        'service_exec_interval': {
+            'type': int,
+            'preserve': False,
+            'env': 'APP_SERVICE_EXEC_INTERVAL',
+            'value': None,
+            'default': 1,
+        },
+        'test_mode': {
+            'type': bool,
+            'preserve': True,
+            'env': 'APP_TEST_MODE',
+            'value': None,
+            'default': False,
+        },
     }
     self._iter_keys = None
   
@@ -139,8 +352,8 @@ class Config:
     """
     detl = self._attr.get(key)
     if not detl:
-      raise KeyError('Config object does not store key: {}'.format(key))
-    
+      raise KeyError(f'Config object does not store key: {key}')
+
     attr_type = detl['type']
     # Priority 1: Manually provided value.
     if detl['value'] is not None:
@@ -151,10 +364,7 @@ class Config:
         return False
       return attr_type(os.environ.get(detl['env']))
     # Priority 3: Hard-coded default value.
-    if detl['default'] is not None:
-      return attr_type(detl['default'])
-    
-    return None
+    return attr_type(detl['default']) if detl['default'] is not None else None
   
   def __setitem__(self, key, value):
     """
@@ -172,19 +382,18 @@ class Config:
       KeyError: Given key is not valid for the Config object.
     """
     if key not in self._attr:
-      raise KeyError('Config object does not store key: {}'.format(key))
-    else:
-      if value is None:
-        self._attr[key]['value'] = None
-      elif self._attr[key]['type'] == bool and isinstance(value, str):
-        if value.upper().strip() == 'FALSE':
-          self._attr[key]['value'] = False
-        elif value.upper().strip() == 'TRUE':
-          self._attr[key]['value'] = True
-        else:
-          self._attr[key]['value'] = self._attr[key]['type'](value)
+      raise KeyError(f'Config object does not store key: {key}')
+    if value is None:
+      self._attr[key]['value'] = None
+    elif self._attr[key]['type'] == bool and isinstance(value, str):
+      if value.upper().strip() == 'FALSE':
+        self._attr[key]['value'] = False
+      elif value.upper().strip() == 'TRUE':
+        self._attr[key]['value'] = True
       else:
         self._attr[key]['value'] = self._attr[key]['type'](value)
+    else:
+      self._attr[key]['value'] = self._attr[key]['type'](value)
   
   def __delitem__(self, key):
     """
@@ -199,7 +408,7 @@ class Config:
       KeyError: Given key is not valid for the Config object.
     """
     if key not in self._attr:
-      raise KeyError('Config object does not store key: {}'.format(key))
+      raise KeyError(f'Config object does not store key: {key}')
     else:
       self._attr[key]['value'] = None
   
@@ -225,15 +434,11 @@ class Config:
     Returns:
       Boolean indicating whether or not key is set. False if relying on default value, True otherwise.
     """
-    
-    detl = self._attr.get(key)
-    if not detl:
-      raise KeyError('Config object does not store key: {}'.format(key))
-    
-    if detl['value'] is None and detl['env'] is None:
-      return False
+
+    if detl := self._attr.get(key):
+      return detl['value'] is not None or detl['env'] is not None
     else:
-      return True
+      raise KeyError(f'Config object does not store key: {key}')
   
   def items(self, only_preserve=True):
     """
@@ -264,7 +469,7 @@ class Config:
     if not self['temp_dir'] or not self['app_name']:
       return None
     else:
-      return '{}/{}.ctllog'.format(self['temp_dir'], self['app_name'])
+      return f"{self['temp_dir']}/{self['app_name']}.ctllog"
   
   @property
   def ctx_file(self):
@@ -274,7 +479,7 @@ class Config:
     if not self['temp_dir'] or not self['app_name']:
       return None
     else:
-      return '{}/{}.ctx'.format(self['temp_dir'], self['app_name'])
+      return f"{self['temp_dir']}/{self['app_name']}.ctx"
   
   def source_config_file(self, config_file):
     """
@@ -292,20 +497,20 @@ class Config:
     """
     # For compatability with older Python3 versions
     str_path = str(config_file)
-    
-    print('Sourcing File: {}'.format(str_path))
+
+    print(f'Sourcing File: {str_path}')
     if not str_path or not os.path.isfile(str_path):
-      raise FileNotFoundError('Configuration file {} does not exist.'.format(str_path))
-    
+      raise FileNotFoundError(f'Configuration file {str_path} does not exist.')
+
     # Source config file and print out all environment vars
-    command = ['bash', '-c', 'source {} && env | grep ^APP_'.format(str_path)]
+    command = ['bash', '-c', f'source {str_path} && env | grep ^APP_']
     proc = Popen(command, stdout = PIPE)
-    
+
     # Set environment vars returned by process
     for line in proc.stdout:
       (key, _, value) = line.decode("utf-8").partition("=")
       os.environ[key] = value.rstrip()
-    
+
     proc.communicate()
   
   def print_attributes(self):
@@ -314,4 +519,4 @@ class Config:
     priority source as value.
     """
     for k in self._attr:
-      print('{} : {}'.format(k, self._attr[k]))
+      print(f'{k} : {self._attr[k]}')

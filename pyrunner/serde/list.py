@@ -22,31 +22,31 @@ from pyrunner.core.register import NodeRegister
 class ListSerDe(SerDe):
   
   def deserialize(self, proc_file, restart=False):
-    print('Processing Process List File: {}'.format(proc_file))
+    print(f'Processing Process List File: {proc_file}')
     if not proc_file or not os.path.isfile(proc_file):
-      raise FileNotFoundError('Process file {} does not exist.'.format(proc_file))
-    
+      raise FileNotFoundError(f'Process file {proc_file} does not exist.')
+
     register = NodeRegister()
     pipe_pattern  = re.compile(r'''((?:[^|"']|"[^"]*"|'[^']*')+)''')
     comma_pattern = re.compile(r'''((?:[^,"']|"[^"]*"|'[^']*')+)''')
-    
+
     with open(proc_file) as f:
       proc_list = f.read().splitlines()
-    
+
     if not proc_list: raise ValueError('No information read from process list file')
-    
+
     used_ids = set()
-    
+
     for proc in proc_list:
       proc = proc.strip()
-      
+
       # Skip Comments and Empty Lines
       if not proc or proc[0] == '#':
         continue
-      
+
       details = [ x.strip(' |') for x in pipe_pattern.split(proc)[1:-1] if x != '|' ]
       sub_details = []
-      
+
       # Substitute $ENV{...} vars with environment vars.
       for item in details:
         if "$ENV{" in item:
@@ -61,15 +61,15 @@ class ListSerDe(SerDe):
           sub_details.append(''.join(subbed))
         else:
           sub_details.append(item)
-      
+
       id = int(sub_details[0])
       if id in used_ids:
         return False
       else:
         used_ids.add(id)
-      
+
       dependencies = [ int(x) for x in sub_details[1].split(',') ]
-      
+
       if restart:
         register.add_node(
           id = id,
@@ -97,7 +97,7 @@ class ListSerDe(SerDe):
           logfile = sub_details[8] if len(sub_details) > 8 else None,
           named_deps = False
         )
-    
+
     return register
   
   def get_ctllog_line(self, node, status):
@@ -108,7 +108,7 @@ class ListSerDe(SerDe):
   def serialize(self, register):
     node_list = []
     for grp in register.register:
-      for node in register.register[grp]:
-        node_list.append((node, grp))
+      node_list.extend((node, grp) for node in register.register[grp])
     node_list.sort(key = (lambda n : n[0].id))
-    return '{}\n\n'.format(constants.HEADER_PYTHON) + '\n'.join([ self.get_ctllog_line(node, status) for node,status in node_list ])
+    return f'{constants.HEADER_PYTHON}\n\n' + '\n'.join(
+        [self.get_ctllog_line(node, status) for node, status in node_list])

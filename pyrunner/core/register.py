@@ -220,16 +220,16 @@ class NodeRegister:
   def add_node(self, **kwargs):
     '''Add ExecutionNode object to the internal register.'''
     req_keys = ['name', 'logfile', 'module', 'worker']
-    if not all(k in kwargs for k in req_keys):
-      print('Missing Required Keys:\n{}'.format([ k for k in req_keys if k not in kwargs ]))
+    if any(k not in kwargs for k in req_keys):
+      print(f'Missing Required Keys:\n{[k for k in req_keys if k not in kwargs]}')
       return False
-    
+
     self._cur_node_id += 1
     node = ExecutionNode(kwargs.get('id', self._cur_node_id))
     node.name = kwargs.get('name')
     node.module = kwargs.get('module')
     node.worker = kwargs.get('worker')
-    
+
     if kwargs.get('logfile'):
       node.logfile = kwargs.get('logfile')
     if kwargs.get('argv'):
@@ -244,5 +244,5 @@ class NodeRegister:
       node.retry_wait_time = kwargs.get('retry_wait_time')
     if kwargs.get('timeout'):
       node.timeout = kwargs.get('timeout')
-    
+
     return self.add_node_object(node, kwargs.get('status', constants.STATUS_PENDING), kwargs.get('dependencies', ['PyRunnerRootNode']), kwargs.get('named_deps', True))

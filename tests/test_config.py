@@ -22,7 +22,7 @@ from datetime import datetime
 from pyrunner.core.config import Config
 
 abs_dir_path = os.path.dirname(os.path.realpath(__file__))
-cfg_file = Path('{}/config/test_profile'.format(abs_dir_path))
+cfg_file = Path(f'{abs_dir_path}/config/test_profile')
 
 @pytest.fixture
 def cfg():
@@ -34,18 +34,16 @@ def cfg():
 def test_source_config_file_env(cfg):
   """Ensure that the config file properly exports all 'APP_' prefixed vars from an 'app_profile'."""
   env = os.environ
-  assert ((
-    env.get('APP_NAME')                   == 'TestApplication')
-    and (env.get('APP_ROOT_DIR')          == abs_dir_path)
-    and (env.get('APP_CONFIG_DIR')        == '{}/config'.format(abs_dir_path))
-    and (env.get('APP_TEMP_DIR')          == '{}/temp'.format(abs_dir_path))
-    and (env.get('APP_DATA_DIR')          == '{}/data'.format(abs_dir_path))
-    and (env.get('APP_ROOT_LOG_DIR')      == '{}/logs'.format(abs_dir_path))
-    and (env.get('APP_WORKER_DIR')        == '{}/python'.format(abs_dir_path))
-    and (env.get('APP_LOG_RETENTION')     == '1')
-    and (env.get('APP_LOG_DIR')           == '{}/logs/{}'.format(abs_dir_path, datetime.now().strftime('%Y-%m-%d')))
-    and (env.get('APP_CUSTOM_VARIABLE_1') == 'my custom variable 1'
-  ))
+  assert (env.get('APP_NAME') == 'TestApplication'
+          and env.get('APP_ROOT_DIR') == abs_dir_path
+          and env.get('APP_CONFIG_DIR') == f'{abs_dir_path}/config'
+          and env.get('APP_TEMP_DIR') == f'{abs_dir_path}/temp'
+          and env.get('APP_DATA_DIR') == f'{abs_dir_path}/data'
+          and env.get('APP_ROOT_LOG_DIR') == f'{abs_dir_path}/logs'
+          and env.get('APP_WORKER_DIR') == f'{abs_dir_path}/python'
+          and env.get('APP_LOG_RETENTION') == '1' and env.get('APP_LOG_DIR') ==
+          f"{abs_dir_path}/logs/{datetime.now().strftime('%Y-%m-%d')}"
+          and env.get('APP_CUSTOM_VARIABLE_1') == 'my custom variable 1')
 
 def test_ignore_misnamed_vars(cfg):
   """Ensure that variables that do not start with 'APP_' are not exported."""
@@ -54,15 +52,13 @@ def test_ignore_misnamed_vars(cfg):
 
 def test_source_config_file_attr(cfg):
   """Ensure that values for any reserved env vars (see Config for var mappings) are also assigned to Config key/values."""
-  assert ((
-    cfg['app_name']           == 'TestApplication')
-    and (cfg['app_root_dir']  == abs_dir_path)
-    and (cfg['temp_dir']      == '{}/temp'.format(abs_dir_path))
-    and (cfg['root_log_dir']  == '{}/logs'.format(abs_dir_path))
-    and (cfg['log_retention'] == 1)
-    and (cfg['worker_dir']    == '{}/python'.format(abs_dir_path))
-    and (cfg['log_dir']       == '{}/logs/{}'.format(abs_dir_path, datetime.now().strftime('%Y-%m-%d'))
-  ))
+  assert (cfg['app_name'] == 'TestApplication'
+          and cfg['app_root_dir'] == abs_dir_path
+          and cfg['temp_dir'] == f'{abs_dir_path}/temp'
+          and cfg['root_log_dir'] == f'{abs_dir_path}/logs'
+          and cfg['log_retention'] == 1
+          and cfg['worker_dir'] == f'{abs_dir_path}/python' and cfg['log_dir']
+          == f"{abs_dir_path}/logs/{datetime.now().strftime('%Y-%m-%d')}")
 
 def test_config_modify_attr(cfg):
   """Test simple config valuue modifications."""
@@ -88,18 +84,16 @@ def test_attr_precedence():
   cfg = Config()
   cfg['app_name'] = 'ModifiedApplicationName'
   cfg['log_retention'] = 999
-  
+
   cfg.source_config_file(cfg_file)
-  
-  assert (
-    (cfg['app_name']          == 'ModifiedApplicationName')
-    and (cfg['app_root_dir']  == abs_dir_path)
-    and (cfg['temp_dir']      == '{}/temp'.format(abs_dir_path))
-    and (cfg['root_log_dir']  == '{}/logs'.format(abs_dir_path))
-    and (cfg['log_retention'] == 999)
-    and (cfg['worker_dir']    == '{}/python'.format(abs_dir_path))
-    and (cfg['log_dir']       == '{}/logs/{}'.format(abs_dir_path, datetime.now().strftime('%Y-%m-%d')))
-  )
+
+  assert (cfg['app_name'] == 'ModifiedApplicationName'
+          and cfg['app_root_dir'] == abs_dir_path
+          and cfg['temp_dir'] == f'{abs_dir_path}/temp'
+          and cfg['root_log_dir'] == f'{abs_dir_path}/logs'
+          and cfg['log_retention'] == 999
+          and cfg['worker_dir'] == f'{abs_dir_path}/python' and cfg['log_dir']
+          == f"{abs_dir_path}/logs/{datetime.now().strftime('%Y-%m-%d')}")
 
 @pytest.mark.parametrize('value, err', [
   ('asdf', ValueError),

@@ -54,7 +54,7 @@ class Worker(ABC):
   @retcode.setter
   def retcode(self, value):
     if int(value) < 0:
-      raise ValueError('retcode must be 0 or greater - received: {}'.format(value))
+      raise ValueError(f'retcode must be 0 or greater - received: {value}')
     self._retcode.value = int(value)
     return self
   
@@ -63,11 +63,11 @@ class Worker(ABC):
     Initiate worker class run method and additionally trigger other lifecycle
     methods, if defined.
     """
-    
+
     self.logger = lg.FileLogger(self.logfile).open()
     sys.stdout = self.logger.logfile_handle
     sys.stderr = self.logger.logfile_handle
-    
+
     # ON START
     try:
       self.retcode = self.on_start() or self.retcode
@@ -78,7 +78,7 @@ class Worker(ABC):
       self.logger.error(str(e))
       self.logger.error(traceback.format_exc())
       self.retcode = 902
-    
+
     # RUN
     try:
       while True:
@@ -90,7 +90,7 @@ class Worker(ABC):
       self.logger.error(str(e))
       self.logger.error(traceback.format_exc())
       self.retcode = 903
-    
+
     if not self.retcode:
       # ON SUCCESS
       try:
@@ -113,7 +113,7 @@ class Worker(ABC):
         self.logger.error(str(e))
         self.logger.error(traceback.format_exc())
         self.retcode = 905
-    
+
     # ON EXIT
     try:
       self.retcode = self.on_destroy() or self.retcode
@@ -124,10 +124,10 @@ class Worker(ABC):
       self.logger.error(str(e))
       self.logger.error(traceback.format_exc())
       self.retcode = 906
-    
+
     self.logger.close()
     self.logger = None
-    
+
     return
   
   # To be implemented in user-defined workers.

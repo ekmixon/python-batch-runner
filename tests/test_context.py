@@ -46,7 +46,7 @@ def test_set_overwrite(ctx):
   assert ctx.get('MYVAR') == 'my new value'
 
 def test_get_invalid_key_returns_none(ctx):
-  assert ctx.get('NOT_REAL') == None
+  assert ctx.get('NOT_REAL') is None
 
 def test_get_invalid_key_return_default_val(ctx):
   assert ctx.get('NOT_REAL', 'my fallback') == 'my fallback'

@@ -20,8 +20,9 @@ from pyrunner.serde.list import ListSerDe
 
 @pytest.fixture
 def proc_file():
-  return '{}/config/tests.lst'.format(os.path.dirname(os.path.realpath(__file__)))
+  return f'{os.path.dirname(os.path.realpath(__file__))}/config/tests.lst'
 
 @pytest.fixture
 def proc_dict():
-  return parser.load_proc_list('{}/config/tests.lst'.format(os.path.dirname(os.path.realpath(__file__))))
+  return parser.load_proc_list(
+      f'{os.path.dirname(os.path.realpath(__file__))}/config/tests.lst')

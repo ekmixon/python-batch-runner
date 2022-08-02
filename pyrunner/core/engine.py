@@ -35,13 +35,13 @@ class ExecutionEngine:
     self.start_time = None
     self.save_state_func = lambda *args: None
     self._wait_until = 0
-    
+
     # Initialization of Manager proxy objects and Context
     self._manager = Manager()
     self._shared_dict = self._manager.dict()
     self._shared_queue = self._manager.Queue()
     self.context = Context(self._shared_dict, self._shared_queue)
-    
+
     # Lifecycle hooks
     self._on_create_func = None
     self._on_start_func = None
@@ -65,37 +65,34 @@ class ExecutionEngine:
   
   def initiate(self, **kwargs):
     """Begins the execution loop."""
-    
+
     signal_handler = SignalHandler(self.config)
     sys.path.append(self.config['worker_dir'])
     self.start_time = time.time()
     wait_interval = 1.0/self.config['tickrate'] if self.config['tickrate'] >= 1 else 0
     last_save = 0
-    
+
     if not self.register: raise RuntimeError('NodeRegister has not been initialized!')
-    
+
     # App lifecycle - RESTART
     if self.config['restart']:
       if self._on_restart_func: self._on_restart_func()
-    # App lifecycle - CREATE
-    else:
-      if self._on_create_func: self._on_create_func()
-    
+    elif self._on_create_func: self._on_create_func()
     # App lifecycle - START
     if self._on_start_func: self._on_start_func()
-    
+
     # Execution loop
     try:
       while self.register.running_nodes or self.register.pending_nodes:
         # Consume pulse signal, if any, to indicate app is already running
         signal_handler.consume(SIG_PULSE)
-        
+
         # Check for abort signals
         if signal_handler.consume(SIG_ABORT):
           print('ABORT signal received! Terminating all running Workers.')
           self._abort_all_workers()
           return -1
-        
+
         # Check for revive signals; revive failed nodes, if any
         if signal_handler.consume(SIG_REVIVE):
           for node in self.register.failed_nodes.copy():
@@ -105,7 +102,7 @@ class ExecutionEngine:
           for node in self.register.defaulted_nodes.copy():
             self.register.defaulted_nodes.remove(node)
             self.register.pending_nodes.add(node)
-        
+
         # Poll running nodes for completion/failure
         for node in self.register.running_nodes.copy():
           retcode = node.poll()
@@ -118,41 +115,39 @@ class ExecutionEngine:
               self.register.pending_nodes.add(node)
             else:
               self.register.completed_nodes.add(node)
-        
+
         # Check pending nodes for eligibility to execute
         for node in self.register.pending_nodes.copy():
           if self.config['max_procs'] > 0 and len(self.register.running_nodes) >= self.config['max_procs']:
             break
-          
+
           if not time.time() >= self._wait_until:
             break
-          
+
           self._wait_until = time.time() + self.config['time_between_tasks']
-          runnable = True
-          for p in node.parent_nodes:
-            if p.id >= 0 and p not in self.register.completed_nodes.union(self.register.norun_nodes):
-              runnable = False
-              break
+          runnable = not any(p.id >= 0 and p not in self.register.
+                             completed_nodes.union(self.register.norun_nodes)
+                             for p in node.parent_nodes)
           if runnable and node.is_runnable():
             self.register.pending_nodes.remove(node)
             node.context = self.context
             node.execute()
             self.register.running_nodes.add(node)
-        
+
         if not kwargs.get('silent') and not self.config['silent']:
           self._print_current_state()
-        
+
         # Check for input requests from interactive mode
         while self.context and self.context.shared_queue and not self.context.shared_queue.empty():
           key = self.context.shared_queue.get()
-          value = input("Please provide value for '{}': ".format(key))
+          value = input(f"Please provide value for '{key}': ")
           self.context.set(key, value)
-        
+
         # Persist state to disk at set intervals
         if not self.config['test_mode'] and self.save_state_func and (time.time() - last_save) >= self.config['save_interval']:
           self.save_state_func(True)
           last_save = time.time()
-        
+
         # Wait
         if wait_interval > 0:
           time.sleep(wait_interval - ((time.time() - self.start_time) % wait_interval))
@@ -161,7 +156,7 @@ class ExecutionEngine:
       print('\nCancelling Execution')
       self._abort_all_workers()
       return -1
-    
+
     # App lifecycle - SUCCESS
     if len(self.register.failed_nodes) == 0:
       if self._on_success_func:
@@ -170,17 +165,17 @@ class ExecutionEngine:
     elif len(self.register.failed_nodes) > 0:
       if self._on_fail_func:
         self._on_fail_func()
-    
+
     # App lifecycle - DESTROY
     if self._on_destroy_func:
       self._on_destroy_func()
-    
+
     if self.config['dump_logs'] or (not kwargs.get('silent') and not self.config['silent']):
       self._print_final_state()
-    
+
     if not self.config['test_mode'] and self.save_state_func:
       self.save_state_func()
-    
+
     return len(self.register.failed_nodes)
   
   def _abort_all_workers(self):
@@ -194,7 +189,7 @@ class ExecutionEngine:
   
   def _print_current_state(self):
     elapsed = time.time() - self.start_time
-    
+
     if not self.config['debug']:
       print('Pending: {} | Running: {} | Completed: {} | Failed: {} | Defaulted: {} | Time Elapsed: {:0.2f} sec.'.format(
         len(self.register.pending_nodes),
@@ -205,18 +200,18 @@ class ExecutionEngine:
         elapsed
       ), flush=True)
     else:
-      print(chr(27) + "[2J")
+      print(f"{chr(27)}[2J")
       print('Elapsed Time: {:0.2f}'.format(elapsed))
       if self.register.pending_nodes: print('\nPENDING TASKS')
       for p in self.register.pending_nodes:
-        print('  {} - {}'.format(p.id, p.name))
+        print(f'  {p.id} - {p.name}')
       if (self.register.failed_nodes.union(self.register.defaulted_nodes)): print('\nFAILED TASKS')
       for p in self.register.failed_nodes.union(self.register.defaulted_nodes):
-        print('  {} - {}'.format(p.id, p.name))
+        print(f'  {p.id} - {p.name}')
       if self.register.running_nodes: print('\nRUNNING TASKS')
       for p in self.register.running_nodes:
-        print('  {} - {}'.format(p.id, p.name))
-    
+        print(f'  {p.id} - {p.name}')
+
     return
   
   def _print_final_state(self, aborted=False):
@@ -244,17 +239,17 @@ class ExecutionEngine:
   def _print_node_info(self, n, dump_logs=False):
     if dump_logs:
       print('############################################################################')
-    
-    print('# ID: {}'.format(n.id))
-    print('# Name: {}'.format(n.name))
-    print('# Module: {}'.format(n.module))
-    print('# Worker: {}'.format(n.worker))
-    print('# Arguments: {}'.format(n.arguments))
-    print('# Log File: {}'.format(n.logfile))
-    
+
+    print(f'# ID: {n.id}')
+    print(f'# Name: {n.name}')
+    print(f'# Module: {n.module}')
+    print(f'# Worker: {n.worker}')
+    print(f'# Arguments: {n.arguments}')
+    print(f'# Log File: {n.logfile}')
+
     if dump_logs:
       with open(n.logfile, 'r') as f:
         for line in f:
           print(line, end='')
-    
+
     print('')

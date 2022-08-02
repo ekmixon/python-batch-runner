@@ -71,7 +71,9 @@ def test_register_set_all_norun(register):
 ])
 def test_register_exec_only(register, exec_list, expected):
   register.exec_only(exec_list)
-  assert set([ n.id for n in register.pending_nodes ]) == set(expected) and len(register.all_nodes) == 6
+  assert {n.id
+          for n in register.pending_nodes} == set(expected) and len(
+              register.all_nodes) == 6
 
 @pytest.mark.parametrize('exec_id, expected', [
   (3, [1,3]),
@@ -83,7 +85,9 @@ def test_register_exec_only(register, exec_list, expected):
 ])
 def test_register_exec_to(register, exec_id, expected):
   register.exec_to(exec_id)
-  assert set([ n.id for n in register.pending_nodes ]) == set(expected) and len(register.all_nodes) == 6
+  assert {n.id
+          for n in register.pending_nodes} == set(expected) and len(
+              register.all_nodes) == 6
 
 @pytest.mark.parametrize('exec_id, expected', [
   (3, [3,5,6]),
@@ -95,7 +99,9 @@ def test_register_exec_to(register, exec_id, expected):
 ])
 def test_register_exec_from(register, exec_id, expected):
   register.exec_from(exec_id)
-  assert set([ n.id for n in register.pending_nodes ]) == set(expected) and len(register.all_nodes) == 6
+  assert {n.id
+          for n in register.pending_nodes} == set(expected) and len(
+              register.all_nodes) == 6
 
 @pytest.mark.parametrize('exec_list, expected', [
   ([1,2,3], [4,5,6]),
@@ -106,7 +112,9 @@ def test_register_exec_from(register, exec_id, expected):
 ])
 def test_register_exec_disable(register, exec_list, expected):
   register.exec_disable(exec_list)
-  assert set([ n.id for n in register.pending_nodes ]) == set(expected) and len(register.all_nodes) == 6
+  assert {n.id
+          for n in register.pending_nodes} == set(expected) and len(
+              register.all_nodes) == 6
 
 #def test_register_interactive(register, ctx):
 #  ctx.interactive = True

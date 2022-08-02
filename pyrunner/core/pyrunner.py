@@ -44,19 +44,21 @@ class PyRunner:
     self.config = Config()
     self._notification = notification.EmailNotification()
     self.signal_handler = SignalHandler(self.config)
-    
+
     self.serde_obj = serde.ListSerDe()
     self.register = NodeRegister()
     self.engine = ExecutionEngine()
-    
+
     self.config['config_file'] = kwargs.get('config_file')
     self.config['proc_file'] = kwargs.get('proc_file')
     self.config['restart'] = kwargs.get('restart', False)
-    
+
     self.parse_args(kwargs.get('parse_args', True))
-    
+
     if self.dup_proc_is_running():
-      raise OSError('Another process for "{}" is already running!'.format(self.config['app_name']))
+      raise OSError(
+          f"""Another process for "{self.config['app_name']}" is already running!"""
+      )
     else:
       # Clear signals, if any, to ensure clean start.
       self.signal_handler.consume_all()
@@ -68,11 +70,10 @@ class PyRunner:
   def dup_proc_is_running(self):
     self.signal_handler.emit(SIG_PULSE)
     time.sleep(1.1)
-    if SIG_PULSE not in self.signal_handler.peek():
-      print(self.signal_handler.peek())
-      return True
-    else:
+    if SIG_PULSE in self.signal_handler.peek():
       return False
+    print(self.signal_handler.peek())
+    return True
   
   def load_proc_file(self, proc_file, restart=False):
     if not proc_file or not os.path.isfile(proc_file):
@@ -187,25 +188,25 @@ class PyRunner:
     return self.run()
   def run(self):
     self.prepare()
-    
+
     self.config['app_start_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    
+
     # Prepare engine
     self.engine.config = self.config
     self.engine.register = self.register
     self.engine.save_state_func = self.save_state
-    
+
     # Short circuit for a dryrun
     if self.config['dryrun']:
       self.print_documentation()
       return 0
-    
+
     # Fire up engine
-    print('Executing PyRunner App: {}'.format(self.config['app_name']))
+    print(f"Executing PyRunner App: {self.config['app_name']}")
     retcode = self.engine.initiate()
-    
+
     emit_notification = True
-    
+
     if retcode == 0:
       if not self.config['email_on_success']:
         print('Skipping Email Notification: Property "email_on_success" is set to FALSE.')
@@ -214,28 +215,26 @@ class PyRunner:
       if not self.config['email_on_fail']:
         print('Skipping Email Notification: Property "email_on_fail" is set to FALSE.')
         emit_notification = False
-    
+
     if emit_notification:
       self.notification.emit_notification(self.config, self.register)
-    
+
     if not self.config['nozip']:
       self.zip_log_files(retcode)
-    
+
     self.cleanup_log_files()
-    
+
     if retcode == 0:
       self.delete_state()
-    
+
     return retcode
   
   def print_documentation(self):
     while self.register.pending_nodes:
       for node in self.register.pending_nodes.copy():
-        runnable = True
-        for p in node.parent_nodes:
-          if p.id >= 0 and p not in self.register.completed_nodes.union(self.register.norun_nodes):
-            runnable = False
-            break
+        runnable = not any(p.id >= 0 and p not in self.register.completed_nodes.
+                           union(self.register.norun_nodes)
+                           for p in node.parent_nodes)
         if runnable:
           self.register.pending_nodes.remove(node)
           intro.print_context_usage(node)
@@ -244,16 +243,16 @@ class PyRunner:
   def cleanup_log_files(self):
     if self.config['log_retention'] < 0:
       return
-    
+
     try:
-      files = glob.glob('{}/*'.format(self.config['root_log_dir']))
+      files = glob.glob(f"{self.config['root_log_dir']}/*")
       to_delete = [ f for f in files if os.stat(f).st_mtime < (time.time() - (self.config['log_retention'] * 86400.0)) ]
-      
+
       if to_delete:
         print('Cleaning Up Old Log Files')
-      
+
       for f in to_delete:
-        print('Deleting File/Directory: {}'.format(f))
+        print(f'Deleting File/Directory: {f}')
         if os.path.isdir(f):
           shutil.rmtree(f)
         else:
@@ -261,90 +260,90 @@ class PyRunner:
     except Exception:
       print("Failure in cleanup_log_files()")
       raise
-    
+
     return
   
   def zip_log_files(self, exit_status):
     node_list = list(self.register.all_nodes)
     zf = None
     zip_file = None
-    
+
     try:
-      
+
       if exit_status == -1:
         suffix = 'ABORT'
       elif exit_status > 0:
         suffix = 'FAILURE'
       else:
         suffix = 'SUCCESS'
-      
-      zip_file = "{}/{}_{}_{}.zip".format(self.config['log_dir'], self.config['app_name'], constants.EXECUTION_TIMESTAMP, suffix)
-      print('Zipping Up Log Files to: {}'.format(zip_file))
+
+      zip_file = f"{self.config['log_dir']}/{self.config['app_name']}_{constants.EXECUTION_TIMESTAMP}_{suffix}.zip"
+      print(f'Zipping Up Log Files to: {zip_file}')
       zf = zipfile.ZipFile(zip_file, 'w', zipfile.ZIP_DEFLATED)
-      
+
       for node in node_list:
         if (node.id != -1 and node not in self.register.pending_nodes.union(self.register.defaulted_nodes)):
           logfile = node.logfile
           if os.path.isfile(logfile):
             zf.write(logfile, os.path.basename(logfile))
             os.remove(logfile)
-      
+
       zf.write(self.config.ctllog_file, os.path.basename(self.config.ctllog_file))
-      
+
     except Exception:
       print("Failure in zip_log_files()")
       raise
     finally:
       if zf:
         zf.close()
-    
+
     return zip_file
   
   def save_state(self, suppress_output=False, only_ctllog=False):
     if not suppress_output:
-      print('Saving Execution Graph File to: {}'.format(self.config.ctllog_file))
-    
+      print(f'Saving Execution Graph File to: {self.config.ctllog_file}')
+
     self.serde_obj.save_to_file(self.config.ctllog_file, self.register)
     if only_ctllog: return
-    
+
     try:
-      
+
       state_obj = {
         'config'       : self.config.items(),
         'shared_dict'  : self.engine._shared_dict.copy()
       }
-      
+
       if not suppress_output:
-        print('Saving Context Object to File: {}'.format(self.config.ctx_file))
-      tmp  = self.config.ctx_file+'.tmp'
+        print(f'Saving Context Object to File: {self.config.ctx_file}')
+      tmp = f'{self.config.ctx_file}.tmp'
       perm = self.config.ctx_file
       pickle.dump(state_obj, open(tmp, 'wb'))
       if os.path.isfile(perm):
         os.unlink(perm)
       os.rename(tmp, perm)
-      
+
     except Exception:
       print("Failure in save_context()")
       raise
-    
+
     return
   
   def load_state(self):
     if not self.load_proc_file(self.config.ctllog_file, True):
       return False
-    
+
     if not os.path.isfile(self.config.ctx_file):
       return False
-    
-    print('Loading prior Context from {}'.format(self.config.ctx_file))
+
+    print(f'Loading prior Context from {self.config.ctx_file}')
     state_obj = pickle.load(open(self.config.ctx_file, 'rb'))
-    
+
     for k,v in state_obj['config'].items():
       self.config[k] = v
-    
+
     for k,v in state_obj['shared_dict'].items():
       self.engine._shared_dict[k] = v
-    
+
     return True
   
   def delete_state(self):
@@ -354,16 +353,12 @@ class PyRunner:
       os.remove(self.config.ctx_file)
   
   def is_restartable(self):
-    if not os.path.isfile(self.config.ctllog_file):
-      return False
-    if not os.path.isfile(self.config.ctx_file):
-      return False
-    return True
+    return (bool(os.path.isfile(self.config.ctx_file))
+            if os.path.isfile(self.config.ctllog_file) else False)
   
   def parse_args(self, run_getopts=True):
     abort, revive = False, False
-    
-    opt_list = 'c:l:n:e:x:N:D:A:t:drhiv'
+
     longopt_list = [
       'setup', 'help', 'nozip', 'interactive', 'abort',
       'restart', 'version', 'dryrun', 'debug', 'silent',
@@ -376,15 +371,16 @@ class PyRunner:
       'notify-on-fail=', 'notify-on-success=', 'as-service',
       'service-exec-interval=', 'revive'
     ]
-    
+
     if run_getopts:
+      opt_list = 'c:l:n:e:x:N:D:A:t:drhiv'
       try:
         opts, _ = getopt.getopt(sys.argv[1:], opt_list, longopt_list)
       except getopt.GetoptError as e:
-        print(str(e))
+        print(e)
         self.show_help()
         sys.exit(1)
-      
+
       for opt, arg in opts:
         if opt == '-c':
           self.config['config_file'] = arg
@@ -457,27 +453,29 @@ class PyRunner:
           self.show_help()
           sys.exit(0)
         elif opt in ('-v', '--version'):
-          print('PyRunner v{}'.format(__version__))
+          print(f'PyRunner v{__version__}')
           sys.exit(0)
         else:
           raise ValueError("Error during parsing of opts")
-    
+
     # We need to check for and source the app_profile/config file ASAP,
     # but only after --env vars are processed
     if not self.config['config_file']:
       raise RuntimeError('Config file (app_profile) has not been provided')
     self.config.source_config_file(self.config['config_file'])
-    
+
     if abort:
-      print('Submitting ABORT signal to running job for: {}'.format(self.config['app_name']))
+      print(f"Submitting ABORT signal to running job for: {self.config['app_name']}")
       self.signal_handler.emit(SIG_ABORT)
       sys.exit(0)
-    
+
     if revive:
-      print('Submitting REVIVE signal to running job for: {}'.format(self.config['app_name']))
+      print(
+          f"Submitting REVIVE signal to running job for: {self.config['app_name']}"
+      )
       self.signal_handler.emit(SIG_REVIVE)
       sys.exit(0)
-    
+
     # Check if restart is possible (ctllog/ctx files exist)
     if self.config['restart'] and not self.is_restartable():
       self.config['restart'] = False

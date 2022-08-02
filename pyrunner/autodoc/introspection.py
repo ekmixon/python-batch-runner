@@ -18,40 +18,40 @@ import inspect, re
 
 def print_context_usage(node):
   print('##################################################')
-  print('# Module: {}'.format(node.module))
-  print('# Worker: {}'.format(node.worker))
+  print(f'# Module: {node.module}')
+  print(f'# Worker: {node.worker}')
   print('##################################################\n')
-  
+
   src = inspect.getsource(node.worker_class)
-  
+
   set_regex = re.compile(r'self.context.set\(\s*?(.+?)\s*?,\s*?(.+?)\s*?\)')
   get_regex = re.compile(r'self.context.get(?:\(\s*?([^,]+?)\s*?\)|\(\s*?(.+?)\s*?,\s*?(.+?)?\s*?\))')
-  
+
   set_results = set_regex.findall(src)
   get_results = get_regex.findall(src)
-  
+
   if set_results:
     print('Context SET Actions:')
   for match in set_results:
-    print('  {} : {}'.format(match[0], match[1]))
+    print(f'  {match[0]} : {match[1]}')
   if set_results:
     print('')
-  
+
   processed_get_res = set()
   for match in get_results:
     if match[0]:
-      processed_get_res.add('{}'.format(match[0].strip()))
+      processed_get_res.add(f'{match[0].strip()}')
     else:
-      processed_get_res.add('{} (Default: {})'.format(match[1].strip(), match[2].strip()))
-  
+      processed_get_res.add(f'{match[1].strip()} (Default: {match[2].strip()})')
+
   if processed_get_res:
     print('Context GET Actions:')
   for res in list(processed_get_res):
-    print('  {}'.format(res))
+    print(f'  {res}')
   if processed_get_res:
     print('')
-  
+
   if not list(processed_get_res)+set_results:
     print('No Context Access\n')
-  
+
   return

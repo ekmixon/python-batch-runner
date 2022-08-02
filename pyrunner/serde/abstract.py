@@ -43,9 +43,9 @@ class SerDe:
     pass
   
   def save_to_file(self, filepath, node_register):
-    tmp  = filepath+'.tmp'
+    tmp = f'{filepath}.tmp'
     perm = filepath
-    
+
     try:
       with open(tmp, 'w') as file:
         file.write(self.serialize(node_register))

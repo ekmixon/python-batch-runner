@@ -26,7 +26,8 @@ def engine():
   engine = ExecutionEngine()
   engine.register = NodeRegister()
   engine.config['tickrate'] = 0
-  engine.config['worker_dir'] = '{}/python'.format(os.path.dirname(os.path.realpath(__file__)))
+  engine.config[
+      'worker_dir'] = f'{os.path.dirname(os.path.realpath(__file__))}/python'
   return engine
 
 def test_engine_success(engine):

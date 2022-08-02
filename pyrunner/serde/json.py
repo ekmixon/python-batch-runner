@@ -40,24 +40,24 @@ class JsonSerDe(SerDe):
     Returns:
       A NodeRegister representation of the Execution Graph in the JSON file.
     """
-    
-    print('Processing Process JSON File: {}'.format(proc_file))
+
+    print(f'Processing Process JSON File: {proc_file}')
     if not proc_file or not os.path.isfile(proc_file):
-      raise FileNotFoundError('Process file {} does not exist.'.format(proc_file))
-    
+      raise FileNotFoundError(f'Process file {proc_file} does not exist.')
+
     register = NodeRegister()
     with open(proc_file) as f:
       proc_obj = json.load(f)
     used_names = set()
-    
+
     for name,details in proc_obj['tasks'].items():
       if name in used_names:
-        raise RuntimeError('Task name {} has already been registered'.format(name))
+        raise RuntimeError(f'Task name {name} has already been registered')
       else:
         used_names.add(name)
-      
+
       # Substitute $ENV{...} vars with environment vars.
-      sub_details = dict()
+      sub_details = {}
       for k,v in details.items():
         if "$ENV{" in str(v):
           subbed = []
@@ -71,20 +71,21 @@ class JsonSerDe(SerDe):
           sub_details[k] = ''.join(subbed)
         else:
           sub_details[k] = v
-      
+
       register.add_node(name = name, **sub_details)
-      
+
     return register
   
   def serialize(self, register):
-    obj = { 'tasks' : dict() }
+    obj = {'tasks': {}}
     for node in sorted(register.all_nodes, key = (lambda n : n.id)):
       obj['tasks'][node.name] = {
         'module'  : node.module,
         'worker'  : node.worker,
         'logfile' : node.logfile
       }
-      if not (len(node.parent_nodes) == 1 and tuple(node.parent_nodes)[0].name == constants.ROOT_NODE_NAME):
+      if (len(node.parent_nodes) != 1
+          or tuple(node.parent_nodes)[0].name != constants.ROOT_NODE_NAME):
         obj['tasks'][node.name]['dependencies'] = [ p.name for p in node.parent_nodes ]
       if node.max_attempts > 1:
         obj['tasks'][node.name]['max_attempts'] = node.max_attempts
@@ -93,5 +94,5 @@ class JsonSerDe(SerDe):
         obj['tasks'][node.name]['arguments'] = node.arguments
       if node.timeout != float('inf'):
         obj['tasks'][node.name]['timeout'] = node.timeout
-    
+
     return json.dumps(obj, indent=4)
